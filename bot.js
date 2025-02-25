@@ -23,17 +23,38 @@ const questions = JSON.parse(fs.readFileSync("questions.json", "utf-8"));
 
 let currentQuestion = null;
 const scores = new Map();
+const answeredUsers = new Set(); // Track users who have answered
+
+// Function to check if the current time is within the active range
+function isWithinActiveTimeRange() {
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+
+    // Define the active time range (4:00 PM to 6:00 PM)
+    const startHour = 16; // 4:00 PM
+    const endHour = 18; // 6:00 PM
+
+    // Check if the current time is within the active range
+    return hours >= startHour && hours < endHour;
+}
 
 client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}`);
     postDailyQuestion(); // Post the first question immediately
-    setInterval(postDailyQuestion, 5 * 60 * 1000); // Post a question every 5 minutes
+    setInterval(postDailyQuestion, 3 * 60 * 1000); // Post a question every 3 minutes
 });
 
 function postDailyQuestion() {
+    if (!isWithinActiveTimeRange()) {
+        console.log("Bot is inactive outside the active time range.");
+        return;
+    }
+
     const randomQuestion =
         questions[Math.floor(Math.random() * questions.length)];
     currentQuestion = randomQuestion;
+    answeredUsers.clear(); // Reset answered users for the new question
 
     // Create buttons for each option
     const buttons = randomQuestion.options.map((option, index) =>
@@ -45,28 +66,29 @@ function postDailyQuestion() {
 
     const row = new ActionRowBuilder().addComponents(buttons);
 
-    // Create an embed
+    // Create an embed with RTL text and image
     const embed = new EmbedBuilder()
-        .setTitle("🎌 سؤال الأنمي اليومي 🎌")
-        .setDescription(randomQuestion.question)
+        .setTitle("\u200F🎌 اليومي الأنمي سؤال 🎌") // RTL mark + reversed text
+        .setDescription("\u200F" + randomQuestion.question) // RTL mark
         .setColor("#FFD700") // Gold color
-        .setThumbnail("https://i.imgur.com/56Bu3l9.png") // Add an anime-related thumbnail
+        .setThumbnail("https://i.imgur.com/56Bu3l9.png") // Updated image URL
+        .setImage(randomQuestion.image) // Add the question image
         .addFields(
             {
-                name: "\u200Fالوقت المتبقي",
-                value: "\u200Fدقيقة واحدة ⏳",
+                name: "\u200Fالمتبقي الوقت",
+                value: "\u200F⏳ 30 ثانية",
                 inline: false,
-            },
+            }, // RTL mark + reversed text
             {
                 name: "\u200Fالنقاط",
-                value: "\u200Fاضغط على الإجابة الصحيحة لربح النقاط!",
+                value: "\u200F!النقاط لربح الصحيحة الإجابة على اضغط",
                 inline: false,
-            },
+            }, // RTL mark + reversed text
         )
         .setFooter({
-            text: "\u200Fأنمي كويز بوت",
+            text: "\u200Fبوت كويز أنمي",
             iconURL: "https://i.imgur.com/56Bu3l9.png",
-        }) // Add a footer with an icon
+        }) // Updated image URL
         .setTimestamp(); // Add a timestamp
 
     // Send the embed with buttons
@@ -78,37 +100,53 @@ function postDailyQuestion() {
     setTimeout(() => {
         if (currentQuestion) {
             const answerEmbed = new EmbedBuilder()
-                .setTitle("⏰ انتهى الوقت! ⏰")
+                .setTitle("\u200F⏰ الوقت انتهى ⏰") // RTL mark + reversed text
                 .setDescription(
-                    `\u200Fالإجابة الصحيحة هي: **${currentQuestion.correctAnswer}**`,
-                )
+                    "\u200F" +
+                        `الإجابة الصحيحة هي: **${currentQuestion.correctAnswer}**`,
+                ) // RTL mark
                 .setColor("#FF0000") // Red color
                 .setFooter({
-                    text: "\u200Fأنمي كويز بوت",
-                    iconURL: "https://i.imgur.com/xyz123.png",
-                })
+                    text: "\u200Fبوت كويز أنمي",
+                    iconURL: "https://i.imgur.com/56Bu3l9.png",
+                }) // Updated image URL
                 .setTimestamp();
             client.channels.cache
                 .get("1343357167528448081")
                 .send({ embeds: [answerEmbed] });
             currentQuestion = null; // Reset the question
         }
-    }, 60000); // 60 seconds
+    }, 30000); // 30 seconds
 }
 
 // Handle button clicks
 client.on("interactionCreate", async (interaction) => {
+    if (!isWithinActiveTimeRange()) {
+        await interaction.reply({
+            content:
+                "البوت غير نشط حالياً. الرجاء المحاولة خلال الساعات النشطة.",
+            flags: 64,
+        }); // Ephemeral
+        return;
+    }
+
     if (!interaction.isButton()) return;
+
+    // Check if the user has already answered
+    if (answeredUsers.has(interaction.user.id)) {
+        await interaction.reply({
+            content: "لقد أجبت بالفعل على هذا السؤال!",
+            flags: 64,
+        }); // Ephemeral
+        return;
+    }
 
     const answerIndex = interaction.customId.split("_")[1];
     const correctAnswer = currentQuestion.correctAnswer;
     const options = currentQuestion.options;
 
     if (options[answerIndex] === correctAnswer) {
-        await interaction.reply({
-            content: "\u200Fإجابة صحيحة! 🎉",
-            flags: 64,
-        });
+        await interaction.reply({ content: "إجابة صحيحة! 🎉", flags: 64 }); // Ephemeral
         const userScore = scores.get(interaction.user.id) || 0;
         scores.set(interaction.user.id, userScore + 1);
 
@@ -132,9 +170,10 @@ client.on("interactionCreate", async (interaction) => {
         currentQuestion = null; // Reset the question
     } else {
         await interaction.reply({
-            content: "\u200Fإجابة خاطئة! حاول مرة أخرى.",
+            content: "إجابة خاطئة! لا يمكنك الإجابة مرة أخرى.",
             flags: 64,
-        });
+        }); // Ephemeral
+        answeredUsers.add(interaction.user.id); // Prevent the user from answering again
     }
 });
 
@@ -151,12 +190,12 @@ client.on("messageCreate", (message) => {
 
         const embed = new EmbedBuilder()
             .setTitle("🏆 لوحة المتصدرين 🏆")
-            .setDescription(leaderboard || "\u200Fلا توجد نقاط حتى الآن!")
+            .setDescription(leaderboard || "لا توجد نقاط حتى الآن!")
             .setColor("#00FF00") // Green color
             .setFooter({
-                text: "\u200Fأنمي كويز بوت",
+                text: "أنمي كويز بوت",
                 iconURL: "https://i.imgur.com/56Bu3l9.png",
-            })
+            }) // Updated image URL
             .setTimestamp();
 
         message.channel.send({ embeds: [embed] });
@@ -167,24 +206,37 @@ client.on("messageCreate", (message) => {
 client.on("messageCreate", (message) => {
     if (message.content === "!مساعدة") {
         const embed = new EmbedBuilder()
-            .setTitle("\u200F🛠️ مساعدة أنمي كويز بوت 🛠️")
+            .setTitle("🛠️ مساعدة أنمي كويز بوت 🛠️")
             .setDescription(
                 `
-                \u200F**كيفية استخدام البوت:**
-                - سيتم نشر سؤال أنمي كل 5 دقائق.
+                **كيفية استخدام البوت:**
+                - سيتم نشر سؤال أنمي كل 3 دقائق.
                 - اضغط على الزر المناسب للإجابة.
-                - لديك دقيقة واحدة للإجابة على كل سؤال.
+                - لديك 30 ثانية للإجابة على كل سؤال.
                 - استخدم \`!الترتيب\` لرؤية أفضل اللاعبين.
             `,
             )
             .setColor("#00BFFF") // Blue color
             .setFooter({
-                text: "\u200Fأنمي كويز بوت",
+                text: "أنمي كويز بوت",
                 iconURL: "https://i.imgur.com/56Bu3l9.png",
-            })
+            }) // Updated image URL
             .setTimestamp();
 
         message.channel.send({ embeds: [embed] });
+    }
+});
+
+// Status command
+client.on("messageCreate", async (message) => {
+    if (message.content === "!الحالة") {
+        if (isWithinActiveTimeRange()) {
+            await message.reply("البوت نشط الآن! 🟢");
+        } else {
+            await message.reply(
+                "البوت غير نشط حالياً. الرجاء المحاولة خلال الساعات النشطة. 🔴",
+            );
+        }
     }
 });
 

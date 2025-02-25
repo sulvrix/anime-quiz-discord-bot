@@ -50,7 +50,7 @@ function postDailyQuestion() {
         .setTitle("🎌 سؤال الأنمي اليومي 🎌")
         .setDescription(randomQuestion.question)
         .setColor("#FFD700") // Gold color
-        .setThumbnail("https://i.imgur.com/xyz123.png") // Add an anime-related thumbnail
+        .setThumbnail("https://i.imgur.com/56Bu3l9.png") // Add an anime-related thumbnail
         .addFields(
             {
                 name: "\u200Fالوقت المتبقي",
@@ -65,7 +65,7 @@ function postDailyQuestion() {
         )
         .setFooter({
             text: "\u200Fأنمي كويز بوت",
-            iconURL: "https://i.imgur.com/xyz123.png",
+            iconURL: "https://i.imgur.com/56Bu3l9.png",
         }) // Add a footer with an icon
         .setTimestamp(); // Add a timestamp
 
@@ -80,7 +80,7 @@ function postDailyQuestion() {
             const answerEmbed = new EmbedBuilder()
                 .setTitle("⏰ انتهى الوقت! ⏰")
                 .setDescription(
-                    `الإجابة الصحيحة هي: **${currentQuestion.correctAnswer}**`,
+                    `\u200Fالإجابة الصحيحة هي: **${currentQuestion.correctAnswer}**`,
                 )
                 .setColor("#FF0000") // Red color
                 .setFooter({
@@ -106,8 +106,8 @@ client.on("interactionCreate", async (interaction) => {
 
     if (options[answerIndex] === correctAnswer) {
         await interaction.reply({
-            content: "إجابة صحيحة! 🎉",
-            ephemeral: true,
+            content: "\u200Fإجابة صحيحة! 🎉",
+            flags: 64,
         });
         const userScore = scores.get(interaction.user.id) || 0;
         scores.set(interaction.user.id, userScore + 1);
@@ -132,8 +132,8 @@ client.on("interactionCreate", async (interaction) => {
         currentQuestion = null; // Reset the question
     } else {
         await interaction.reply({
-            content: "إجابة خاطئة! حاول مرة أخرى.",
-            ephemeral: true,
+            content: "\u200Fإجابة خاطئة! حاول مرة أخرى.",
+            flags: 64,
         });
     }
 });

@@ -71,7 +71,7 @@ function postDailyQuestion() {
 
     // Send the embed with buttons
     client.channels.cache
-        .get("1343967209604517990")
+        .get("1343357167528448081")
         .send({ embeds: [embed], components: [row] });
 
     // Set a 30-second timer to end the answering window
@@ -89,7 +89,7 @@ function postDailyQuestion() {
                 })
                 .setTimestamp();
             client.channels.cache
-                .get("1343967209604517990")
+                .get("1343357167528448081")
                 .send({ embeds: [answerEmbed] });
             currentQuestion = null; // Reset the question
         }

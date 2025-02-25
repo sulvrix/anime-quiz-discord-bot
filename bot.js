@@ -47,7 +47,7 @@ client.on("ready", () => {
 
 function postDailyQuestion() {
     if (!isWithinActiveTimeRange()) {
-        console.log("Bot is inactive outside the active time range.");
+        console.log("Not within active time range. Skipping question.");
         return;
     }
 
@@ -121,15 +121,6 @@ function postDailyQuestion() {
 
 // Handle button clicks
 client.on("interactionCreate", async (interaction) => {
-    if (!isWithinActiveTimeRange()) {
-        await interaction.reply({
-            content:
-                "البوت غير نشط حالياً. الرجاء المحاولة خلال الساعات النشطة.",
-            flags: 64,
-        }); // Ephemeral
-        return;
-    }
-
     if (!interaction.isButton()) return;
 
     // Check if the user has already answered
@@ -236,6 +227,22 @@ client.on("messageCreate", async (message) => {
             await message.reply(
                 "البوت غير نشط حالياً. الرجاء المحاولة خلال الساعات النشطة. 🔴",
             );
+        }
+    }
+});
+
+// Admin command to force a question (using multiple role IDs)
+client.on("messageCreate", async (message) => {
+    if (message.content === "!سؤال") {
+        // Replace with your allowed role IDs
+        const allowedRoleIds = ["1322237538232172568", "1342591205455954012"]; // Example: ['123456789012345678', '987654321098765432']
+        const hasAllowedRole = allowedRoleIds.some((roleId) =>
+            message.member.roles.cache.has(roleId),
+        );
+
+        if (hasAllowedRole) {
+            // Force post a question
+            postDailyQuestion();
         }
     }
 });

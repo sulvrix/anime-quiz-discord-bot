@@ -44,8 +44,8 @@ function postDailyQuestion() {
         .setColor('#FFD700') // Gold color
         .setThumbnail('https://i.imgur.com/xyz123.png') // Add an anime-related thumbnail
         .addFields(
-            { name: 'الوقت المتبقي', value: 'دقيقة واحدة ⏳', inline: true },
-            { name: 'النقاط', value: 'اضغط على الإجابة الصحيحة لربح النقاط!', inline: true }
+            { name: 'الوقت المتبقي', value: 'دقيقة واحدة ⏳', inline: false },
+            { name: 'النقاط', value: 'اضغط على الإجابة الصحيحة لربح النقاط!', inline: false }
         )
         .setFooter({ text: 'أنمي كويز بوت', iconURL: 'https://i.imgur.com/xyz123.png' }) // Add a footer with an icon
         .setTimestamp(); // Add a timestamp

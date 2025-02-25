@@ -8,6 +8,7 @@ const client = new Client({
         GatewayIntentBits.MessageContent,
     ],
 });
+//t
 
 const token = process.env.BOT_TOKEN; // Load token from .env file
 

@@ -46,10 +46,10 @@ client.on("ready", () => {
 });
 
 function postDailyQuestion() {
-    if (!isWithinActiveTimeRange()) {
-        console.log("Not within active time range. Skipping question.");
-        return;
-    }
+    //if (!isWithinActiveTimeRange()) {
+    //    console.log("Not within active time range. Skipping question.");
+    //    return;
+    //}
 
     const randomQuestion =
         questions[Math.floor(Math.random() * questions.length)];
@@ -68,25 +68,25 @@ function postDailyQuestion() {
 
     // Create an embed with RTL text and image
     const embed = new EmbedBuilder()
-        .setTitle("\u200F🎌 اليومي الأنمي سؤال 🎌") // RTL mark + reversed text
+        .setTitle("\u200F🎌 سؤال الأنمي اليومي 🎌") // RTL mark + reversed text
         .setDescription("\u200F" + randomQuestion.question) // RTL mark
         .setColor("#FFD700") // Gold color
         .setThumbnail("https://i.imgur.com/56Bu3l9.png") // Updated image URL
         .setImage(randomQuestion.image) // Add the question image
         .addFields(
             {
-                name: "\u200Fالمتبقي الوقت",
+                name: "\u200Fالوقت المتبقي",
                 value: "\u200F⏳ 30 ثانية",
                 inline: false,
             }, // RTL mark + reversed text
             {
                 name: "\u200Fالنقاط",
-                value: "\u200F!النقاط لربح الصحيحة الإجابة على اضغط",
+                value: "\u200F!اضغط على الإجابة الصحيحة",
                 inline: false,
             }, // RTL mark + reversed text
         )
         .setFooter({
-            text: "\u200Fبوت كويز أنمي",
+            text: "\u200Fأنمي كويز بوت",
             iconURL: "https://i.imgur.com/56Bu3l9.png",
         }) // Updated image URL
         .setTimestamp(); // Add a timestamp
@@ -100,14 +100,14 @@ function postDailyQuestion() {
     setTimeout(() => {
         if (currentQuestion) {
             const answerEmbed = new EmbedBuilder()
-                .setTitle("\u200F⏰ الوقت انتهى ⏰") // RTL mark + reversed text
+                .setTitle("\u200F⏰ انتهى الوقت ⏰") // RTL mark + reversed text
                 .setDescription(
                     "\u200F" +
                         `الإجابة الصحيحة هي: **${currentQuestion.correctAnswer}**`,
                 ) // RTL mark
                 .setColor("#FF0000") // Red color
                 .setFooter({
-                    text: "\u200Fبوت كويز أنمي",
+                    text: "\u200Fأنمي كويز بوت",
                     iconURL: "https://i.imgur.com/56Bu3l9.png",
                 }) // Updated image URL
                 .setTimestamp();
@@ -219,17 +219,17 @@ client.on("messageCreate", (message) => {
 });
 
 // Status command
-client.on("messageCreate", async (message) => {
-    if (message.content === "!الحالة") {
-        if (isWithinActiveTimeRange()) {
-            await message.reply("البوت نشط الآن! 🟢");
-        } else {
-            await message.reply(
-                "البوت غير نشط حالياً. الرجاء المحاولة خلال الساعات النشطة. 🔴",
-            );
-        }
-    }
-});
+//client.on("messageCreate", async (message) => {
+//    if (message.content === "!الحالة") {
+//        if (isWithinActiveTimeRange()) {
+//            await message.reply("البوت نشط الآن! 🟢");
+//        } else {
+//            await message.reply(
+//                "البوت غير نشط حالياً. الرجاء المحاولة خلال الساعات النشطة. 🔴",
+//            );
+//        }
+//    }
+//});
 
 // Admin command to force a question (using multiple role IDs)
 client.on("messageCreate", async (message) => {

@@ -74,6 +74,9 @@ function postDailyQuestion() {
         .setThumbnail("https://i.imgur.com/56Bu3l9.png") // Updated image URL
         .setImage(randomQuestion.image) // Add the question image
         .addFields(
+            { name: "\u200B", value: "\u200B", inline: false }, // Invisible spacer field
+        )
+        .addFields(
             {
                 name: "\u200Fالوقت المتبقي",
                 value: "\u200F⏳ 30 ثانية",
@@ -84,6 +87,9 @@ function postDailyQuestion() {
                 value: "\u200F!اضغط على الإجابة الصحيحة",
                 inline: false,
             }, // RTL mark + reversed text
+        )
+        .addFields(
+            { name: "\u200B", value: "\u200B", inline: false }, // Invisible spacer field
         )
         .setFooter({
             text: "\u200Fأنمي كويز بوت",

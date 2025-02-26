@@ -253,7 +253,7 @@ client.on("messageCreate", async (message) => {
 
 // Leaderboard command
 client.on("messageCreate", (message) => {
-    if (message.content === "!الترتيب") {
+    if (message.content === "!score") {
         const sortedScores = [...scores.entries()].sort((a, b) => b[1] - a[1]);
         const leaderboard = sortedScores
             .map(
@@ -276,7 +276,7 @@ client.on("messageCreate", (message) => {
 });
 
 client.on("messageCreate", (message) => {
-    if (message.content === "!مساعدة") {
+    if (message.content === "!help") {
         const embed = new EmbedBuilder()
             .setTitle("🛠️ مساعدة أنمي كويز بوت 🛠️")
             .setDescription("**مرحبًا! هنا كيفية استخدام البوت:**")
@@ -302,8 +302,8 @@ client.on("messageCreate", (message) => {
                 {
                     name: "🏆 **أوامر إضافية**",
                     value: `
-                        - \`!الترتيب\`: عرض لوحة المتصدرين.
-                        - \`!مساعدة\`: عرض هذه الرسالة.
+                        - \`!score\`: عرض لوحة المتصدرين.
+                        - \`!help\`: عرض هذه الرسالة.
                     `,
                     inline: false,
                 },
@@ -327,11 +327,10 @@ client.on("messageCreate", async (message) => {
 
         if (hasAllowedRole) {
             // Force post a question
-            if (message.content === "!reset") {
-                // Clear the scores map
-                scores.clear();
-                await message.channel.send("تم إعادة تعيين النقاط بنجاح! 🎉");
-            }
+
+            scores.clear();
+            await message.channel.send("تم إعادة تعيين النقاط بنجاح! 🎉");
+
 
         }
     }

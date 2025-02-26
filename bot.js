@@ -20,12 +20,15 @@ const questions = JSON.parse(fs.readFileSync("questions.json", "utf-8"));
 
 let currentQuestion = null;
 let lastQuestion = null; // Track the last question asked
+let quizActive = false; // Control whether the quiz is active
 const scores = new Map();
 const answeredUsers = new Set(); // Track users who have answered
 
+// Allowed role IDs for admin commands
+const allowedRoleIds = ["1322237538232172568", "1342591205455954012"]; // Replace with your role IDs
+
 client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}`);
-    postDailyQuestion(); // Post the first question immediately
 });
 
 function getRandomQuestion() {
@@ -40,6 +43,8 @@ function getRandomQuestion() {
 }
 
 function postDailyQuestion() {
+    if (!quizActive) return; // Do not post questions if the quiz is inactive
+
     const randomQuestion = getRandomQuestion(); // Get a non-repeating random question
     currentQuestion = randomQuestion;
     answeredUsers.clear(); // Reset answered users for the new question
@@ -100,8 +105,10 @@ function postDailyQuestion() {
                 .send({ embeds: [answerEmbed] });
             currentQuestion = null; // Reset the question
 
-            // Schedule the next question after 30 seconds
-            setTimeout(postDailyQuestion, 30000); // 30 seconds
+            // Schedule the next question after 30 seconds (if the quiz is still active)
+            if (quizActive) {
+                setTimeout(postDailyQuestion, 30000); // 30 seconds
+            }
         }
     }, 30000); // 30 seconds
 }
@@ -140,8 +147,45 @@ client.on("messageCreate", async (message) => {
         // Reset the question
         currentQuestion = null;
 
-        // Schedule the next question after 30 seconds
-        setTimeout(postDailyQuestion, 30000); // 30 seconds
+        // Schedule the next question after 30 seconds (if the quiz is still active)
+        if (quizActive) {
+            setTimeout(postDailyQuestion, 30000); // 30 seconds
+        }
+    }
+});
+
+// Start/Stop Quiz Commands
+client.on("messageCreate", async (message) => {
+    if (message.author.bot) return; // Ignore messages from bots
+
+    // Check if the user has an allowed role
+    const hasAllowedRole = allowedRoleIds.some((roleId) =>
+        message.member.roles.cache.has(roleId),
+    );
+
+    if (!hasAllowedRole) return; // Ignore if the user doesn't have the required role
+
+    // Start Quiz Command
+    if (message.content === "!startquiz") {
+        if (quizActive) {
+            await message.reply("الاختبار يعمل بالفعل!");
+            return;
+        }
+
+        quizActive = true;
+        await message.reply("تم بدء الاختبار! سيتم نشر الأسئلة الآن.");
+        postDailyQuestion(); // Start posting questions
+    }
+
+    // Stop Quiz Command
+    if (message.content === "!stopquiz") {
+        if (!quizActive) {
+            await message.reply("الاختبار متوقف بالفعل!");
+            return;
+        }
+
+        quizActive = false;
+        await message.reply("تم إيقاف الاختبار. لن يتم نشر المزيد من الأسئلة.");
     }
 });
 
@@ -178,7 +222,8 @@ client.on("messageCreate", (message) => {
             .setDescription(
                 `
                 **كيفية استخدام البوت:**
-                - سيتم نشر سؤال أنمي كل 30 ثانية بعد انتهاء السؤال السابق.
+                - استخدم \`!startquiz\` لبدء الاختبار (للمشرفين فقط).
+                - استخدم \`!stopquiz\` لإيقاف الاختبار (للمشرفين فقط).
                 - اكتب الإجابة الصحيحة في الشات.
                 - لديك 30 ثانية للإجابة على كل سؤال.
                 - استخدم \`!الترتيب\` لرؤية أفضل اللاعبين.
@@ -198,8 +243,7 @@ client.on("messageCreate", (message) => {
 // Admin command to force a question (using multiple role IDs)
 client.on("messageCreate", async (message) => {
     if (message.content === "!سؤال") {
-        // Replace with your allowed role IDs
-        const allowedRoleIds = ["1322237538232172568", "1342591205455954012"]; // Example: ['123456789012345678', '987654321098765432']
+        // Check if the user has an allowed role
         const hasAllowedRole = allowedRoleIds.some((roleId) =>
             message.member.roles.cache.has(roleId),
         );

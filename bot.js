@@ -42,7 +42,7 @@ function getRandomQuestion() {
     return randomQuestion;
 }
 
-function postDailyQuestion() {
+async function postDailyQuestion() {
     if (!quizActive) return; // Do not post questions if the quiz is inactive
 
     const randomQuestion = getRandomQuestion(); // Get a non-repeating random question
@@ -80,8 +80,8 @@ function postDailyQuestion() {
         }) // Updated image URL
         .setTimestamp(); // Add a timestamp
 
-    // Send the embed
-    client.channels.cache
+    // Send the embed and store the message
+    const questionMessage = await client.channels.cache
         .get("1343357167528448081")
         .send({ embeds: [embed] });
 

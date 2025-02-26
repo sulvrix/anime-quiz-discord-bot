@@ -95,19 +95,22 @@ function postDailyQuestion() {
     }, 30000); // 30 seconds
 }
 
-// Listen for messages in the chat
 client.on("messageCreate", async (message) => {
     if (message.author.bot) return; // Ignore messages from bots
     if (!currentQuestion) return; // Ignore messages if no question is active
 
     // Check if the user has already answered
     if (answeredUsers.has(message.author.id)) {
-        await message.reply("لقد أجبت بالفعل على هذا السؤال!");
+        try {
+            await message.reply("لقد أجبت بالفعل على هذا السؤال!");
+        } catch (error) {
+            console.error("Failed to send reply:", error);
+        }
         return;
     }
 
     // Check if the message matches the correct answer
-    if (message.content.trim().toLowerCase() === currentQuestion.correctAnswer.toLowerCase()) {
+    if (message.content.trim() === currentQuestion.correctAnswer) {
         // Add the user to the answered users set
         answeredUsers.add(message.author.id);
 
@@ -115,8 +118,12 @@ client.on("messageCreate", async (message) => {
         const userScore = scores.get(message.author.id) || 0;
         scores.set(message.author.id, userScore + 1);
 
-        // Announce the correct answer
-        await message.reply(`<@${message.author.id}> أجاب بشكل صحيح! 🎉`);
+        try {
+            // Announce the correct answer
+            await message.channel.send(`<@${message.author.id}> أجاب بشكل صحيح! 🎉`);
+        } catch (error) {
+            console.error("Failed to send announcement:", error);
+        }
 
         // Reset the question
         currentQuestion = null;

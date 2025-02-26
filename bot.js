@@ -3,16 +3,13 @@ const {
     Client,
     GatewayIntentBits,
     EmbedBuilder,
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle,
 } = require("discord.js");
 const fs = require("fs"); // Import the fs module to read files
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.MessageContent, // Required to read message content
     ],
 });
 
@@ -25,33 +22,16 @@ let currentQuestion = null;
 const scores = new Map();
 const answeredUsers = new Set(); // Track users who have answered
 
-
 client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}`);
     postDailyQuestion(); // Post the first question immediately
-    setInterval(postDailyQuestion, 3 * 60 * 1000); // Post a question every 3 minutes
 });
 
 function postDailyQuestion() {
-    //if (!isWithinActiveTimeRange()) {
-    //    console.log("Not within active time range. Skipping question.");
-    //    return;
-    //}
-
     const randomQuestion =
         questions[Math.floor(Math.random() * questions.length)];
     currentQuestion = randomQuestion;
     answeredUsers.clear(); // Reset answered users for the new question
-
-    // Create buttons for each option
-    const buttons = randomQuestion.options.map((option, index) =>
-        new ButtonBuilder()
-            .setCustomId(`answer_${index}`)
-            .setLabel(option) // Display the actual answer text
-            .setStyle(ButtonStyle.Primary),
-    );
-
-    const row = new ActionRowBuilder().addComponents(buttons);
 
     // Create an embed with RTL text and image
     const embed = new EmbedBuilder()
@@ -71,7 +51,7 @@ function postDailyQuestion() {
             }, // RTL mark + reversed text
             {
                 name: "\u200Fالنقاط",
-                value: "\u200F!اضغط على الإجابة الصحيحة",
+                value: "\u200F!اكتب الإجابة الصحيحة في الشات",
                 inline: false,
             }, // RTL mark + reversed text
         )
@@ -84,10 +64,10 @@ function postDailyQuestion() {
         }) // Updated image URL
         .setTimestamp(); // Add a timestamp
 
-    // Send the embed with buttons
+    // Send the embed
     client.channels.cache
         .get("1343357167528448081")
-        .send({ embeds: [embed], components: [row] });
+        .send({ embeds: [embed] });
 
     // Set a 30-second timer to end the answering window
     setTimeout(() => {
@@ -108,56 +88,41 @@ function postDailyQuestion() {
                 .get("1343357167528448081")
                 .send({ embeds: [answerEmbed] });
             currentQuestion = null; // Reset the question
+
+            // Schedule the next question after 30 seconds
+            setTimeout(postDailyQuestion, 30000); // 30 seconds
         }
     }, 30000); // 30 seconds
 }
 
-// Handle button clicks
-client.on("interactionCreate", async (interaction) => {
-    if (!interaction.isButton()) return;
+// Listen for messages in the chat
+client.on("messageCreate", async (message) => {
+    if (message.author.bot) return; // Ignore messages from bots
+    if (!currentQuestion) return; // Ignore messages if no question is active
 
     // Check if the user has already answered
-    if (answeredUsers.has(interaction.user.id)) {
-        await interaction.reply({
-            content: "لقد أجبت بالفعل على هذا السؤال!",
-            flags: 64,
-        }); // Ephemeral
+    if (answeredUsers.has(message.author.id)) {
+        await message.reply("لقد أجبت بالفعل على هذا السؤال!");
         return;
     }
 
-    const answerIndex = interaction.customId.split("_")[1];
-    const correctAnswer = currentQuestion.correctAnswer;
-    const options = currentQuestion.options;
+    // Check if the message matches the correct answer
+    if (message.content.trim().toLowerCase() === currentQuestion.correctAnswer.toLowerCase()) {
+        // Add the user to the answered users set
+        answeredUsers.add(message.author.id);
 
-    if (options[answerIndex] === correctAnswer) {
-        await interaction.reply(`<@${interaction.user.id}> أجاب بشكل صحيح! 🎉`);
-        const userScore = scores.get(interaction.user.id) || 0;
-        scores.set(interaction.user.id, userScore + 1);
+        // Update the user's score
+        const userScore = scores.get(message.author.id) || 0;
+        scores.set(message.author.id, userScore + 1);
 
-        // Highlight the correct answer
-        const buttons = options.map(
-            (option, index) =>
-                new ButtonBuilder()
-                    .setCustomId(`answer_${index}`)
-                    .setLabel(option)
-                    .setStyle(
-                        index === answerIndex
-                            ? ButtonStyle.Success
-                            : ButtonStyle.Secondary,
-                    ) // Highlight correct answer
-                    .setDisabled(true), // Disable buttons after answering
-        );
+        // Announce the correct answer
+        await message.reply(`<@${message.author.id}> أجاب بشكل صحيح! 🎉`);
 
-        const row = new ActionRowBuilder().addComponents(buttons);
+        // Reset the question
+        currentQuestion = null;
 
-        await interaction.message.edit({ components: [row] }); // Update the message with disabled buttons
-        currentQuestion = null; // Reset the question
-    } else {
-        await interaction.reply({
-            content: "إجابة خاطئة! لا يمكنك الإجابة مرة أخرى.",
-            flags: 64,
-        }); // Ephemeral
-        answeredUsers.add(interaction.user.id); // Prevent the user from answering again
+        // Schedule the next question after 30 seconds
+        setTimeout(postDailyQuestion, 30000); // 30 seconds
     }
 });
 
@@ -194,8 +159,8 @@ client.on("messageCreate", (message) => {
             .setDescription(
                 `
                 **كيفية استخدام البوت:**
-                - سيتم نشر سؤال أنمي كل 3 دقائق.
-                - اضغط على الزر المناسب للإجابة.
+                - سيتم نشر سؤال أنمي كل 30 ثانية بعد انتهاء السؤال السابق.
+                - اكتب الإجابة الصحيحة في الشات.
                 - لديك 30 ثانية للإجابة على كل سؤال.
                 - استخدم \`!الترتيب\` لرؤية أفضل اللاعبين.
             `,

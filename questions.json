@@ -1,24 +1,16 @@
 [
     {
         "question": "من هي الشخصية التي تظهر في الصورة؟",
-        "options": [
-            "مونكي دي لوفي",
-            "فينسموك سانجي",
-            "غول دي روجر",
-            "رورونوا زورو"
-        ],
-        "correctAnswer": "مونكي دي لوفي",
+        "correctAnswer": "لوفي",
         "image": "https://i.imgur.com/PLAobHS.jpeg"
     },
     {
         "question": "من هي الشخصية التي تظهر في الصورة؟",
-        "options": ["قون فريكس", "كيلوا زولديك", "كورابيكا", "ليوريو"],
         "correctAnswer": "كورابيكا",
         "image": "https://i.imgur.com/uDPH8RL.gif"
     },
     {
         "question": "من هي الشخصية التي تظهر في الصورة؟",
-        "options": ["ناروتو", "ساسكي", "ساكورا", "كاكاشي"],
         "correctAnswer": "ساسكي",
         "image": "https://i.imgur.com/8MnqjPE.gif"
     }

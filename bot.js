@@ -42,6 +42,7 @@ function getRandomQuestion() {
     lastQuestion = randomQuestion; // Update the last question asked
     return randomQuestion;
 }
+let questionTimeout = null; // Track the setTimeout for the next question
 
 async function postDailyQuestion() {
     if (!quizActive) return; // Do not post questions if the quiz is inactive
@@ -155,7 +156,14 @@ async function postDailyQuestion() {
 
             // Schedule the next question after 30 seconds (if the quiz is still active)
             if (quizActive) {
-                setTimeout(postDailyQuestion, 30000); // 30 seconds
+                // Clear any existing timeout
+                if (questionTimeout) {
+                    clearTimeout(questionTimeout);
+                    questionTimeout = null;
+                }
+
+                // Schedule the next question
+                questionTimeout = setTimeout(postDailyQuestion, 30000); // 30 seconds
             }
         }
     }, 1000); // Update every second
@@ -177,7 +185,7 @@ client.on("messageCreate", async (message) => {
     }
 
     // Check if the message matches the correct answer
-    if (message.content.trim().toLowerCase() === currentQuestion.correctAnswer.toLowerCase()) {
+    if (message.content.trim() === currentQuestion.correctAnswer) {
         // Add the user to the answered users set
         answeredUsers.add(message.author.id);
 
@@ -203,11 +211,17 @@ client.on("messageCreate", async (message) => {
 
         // Schedule the next question after 30 seconds (if the quiz is still active)
         if (quizActive) {
-            setTimeout(postDailyQuestion, 30000); // 30 seconds
+            // Clear any existing timeout
+            if (questionTimeout) {
+                clearTimeout(questionTimeout);
+                questionTimeout = null;
+            }
+
+            // Schedule the next question
+            questionTimeout = setTimeout(postDailyQuestion, 30000); // 30 seconds
         }
     }
 });
-
 // Start/Stop Quiz Commands
 client.on("messageCreate", async (message) => {
     if (message.author.bot) return; // Ignore messages from bots

@@ -19,6 +19,7 @@ const token = process.env.BOT_TOKEN; // Load token from .env file
 const questions = JSON.parse(fs.readFileSync("questions.json", "utf-8"));
 
 let currentQuestion = null;
+let lastQuestion = null; // Track the last question asked
 const scores = new Map();
 const answeredUsers = new Set(); // Track users who have answered
 
@@ -27,9 +28,19 @@ client.on("ready", () => {
     postDailyQuestion(); // Post the first question immediately
 });
 
+function getRandomQuestion() {
+    let randomQuestion;
+    do {
+        // Select a random question
+        randomQuestion = questions[Math.floor(Math.random() * questions.length)];
+    } while (randomQuestion === lastQuestion); // Ensure it's not the same as the last question
+
+    lastQuestion = randomQuestion; // Update the last question asked
+    return randomQuestion;
+}
+
 function postDailyQuestion() {
-    const randomQuestion =
-        questions[Math.floor(Math.random() * questions.length)];
+    const randomQuestion = getRandomQuestion(); // Get a non-repeating random question
     currentQuestion = randomQuestion;
     answeredUsers.clear(); // Reset answered users for the new question
 
@@ -95,6 +106,7 @@ function postDailyQuestion() {
     }, 30000); // 30 seconds
 }
 
+// Listen for messages in the chat
 client.on("messageCreate", async (message) => {
     if (message.author.bot) return; // Ignore messages from bots
     if (!currentQuestion) return; // Ignore messages if no question is active
@@ -110,7 +122,7 @@ client.on("messageCreate", async (message) => {
     }
 
     // Check if the message matches the correct answer
-    if (message.content.trim() === currentQuestion.correctAnswer) {
+    if (message.content.trim().toLowerCase() === currentQuestion.correctAnswer.toLowerCase()) {
         // Add the user to the answered users set
         answeredUsers.add(message.author.id);
 

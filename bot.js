@@ -23,6 +23,7 @@ let lastQuestion = null; // Track the last question asked
 let quizActive = false; // Control whether the quiz is active
 const scores = new Map();
 const answeredUsers = new Set(); // Track users who have answered
+let countdownInterval = null; // Store the countdown interval
 
 // Allowed role IDs for admin commands
 const allowedRoleIds = ["1322237538232172568", "1342591205455954012"]; // Replace with your role IDs
@@ -88,7 +89,7 @@ async function postDailyQuestion() {
     let timeLeft = 30; // Initial time in seconds
 
     // Update the embed every second
-    const countdownInterval = setInterval(async () => {
+    countdownInterval = setInterval(async () => {
         timeLeft--;
 
         // Update the embed with the new time
@@ -125,10 +126,10 @@ async function postDailyQuestion() {
         // Edit the message with the updated embed
         await questionMessage.edit({ embeds: [updatedEmbed] });
 
-
         // Stop the countdown when time runs out
         if (timeLeft <= 0 || !quizActive || !currentQuestion) {
             clearInterval(countdownInterval);
+            countdownInterval = null; // Reset the interval variable
 
             // Check if the question is still active
             if (currentQuestion) {
@@ -191,6 +192,12 @@ client.on("messageCreate", async (message) => {
             console.error("Failed to send announcement:", error);
         }
 
+        // Clear the countdown interval
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+
         // Reset the question
         currentQuestion = null;
 
@@ -233,6 +240,13 @@ client.on("messageCreate", async (message) => {
 
         quizActive = false;
         currentQuestion = null; // Reset the current question
+
+        // Clear the countdown interval
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+
         await message.channel.send("تم إيقاف الاختبار. لن يتم نشر المزيد من الأسئلة.");
     }
 });

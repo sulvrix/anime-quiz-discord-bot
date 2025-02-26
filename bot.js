@@ -56,7 +56,7 @@ async function postDailyQuestion() {
         .setTitle("\u200F🎌 سؤال الأنمي اليومي 🎌") // RTL mark + reversed text
         .setDescription("\u200F" + randomQuestion.question) // RTL mark
         .setColor("#FFD700") // Gold color
-        .setThumbnail("https://i.imgur.com/56Bu3l9.png") // Updated image URL
+        .setThumbnail("https://static.wikia.nocookie.net/frieren/images/9/96/Himmel_anime_portrait.png/revision/latest?cb=20231017083515") // Updated image URL
         .setImage(randomQuestion.image) // Add the question image
         .addFields(
             { name: "\u200B", value: "\u200B", inline: false }, // Invisible spacer field
@@ -78,7 +78,6 @@ async function postDailyQuestion() {
         )
         .setFooter({
             text: "\u200Fأنمي كويز بوت",
-            iconURL: "https://i.imgur.com/56Bu3l9.png",
         }) // Updated image URL
         .setTimestamp(); // Add a timestamp
 
@@ -98,7 +97,7 @@ async function postDailyQuestion() {
             .setTitle("\u200F🎌 سؤال الأنمي اليومي 🎌")
             .setDescription("\u200F" + randomQuestion.question)
             .setColor("#FFD700")
-            .setThumbnail("https://i.imgur.com/56Bu3l9.png")
+            .setThumbnail("https://static.wikia.nocookie.net/frieren/images/9/96/Himmel_anime_portrait.png/revision/latest?cb=20231017083515")
             .setImage(randomQuestion.image)
             .addFields(
                 { name: "\u200B", value: "\u200B", inline: false },
@@ -120,7 +119,6 @@ async function postDailyQuestion() {
             )
             .setFooter({
                 text: "\u200Fأنمي كويز بوت",
-                iconURL: "https://i.imgur.com/56Bu3l9.png",
             })
             .setTimestamp();
 
@@ -143,7 +141,6 @@ async function postDailyQuestion() {
                     .setColor("#FF0000")
                     .setFooter({
                         text: "\u200Fأنمي كويز بوت",
-                        iconURL: "https://i.imgur.com/56Bu3l9.png",
                     })
                     .setTimestamp();
 
@@ -282,7 +279,6 @@ client.on("messageCreate", (message) => {
             .setColor("#00FF00") // Green color
             .setFooter({
                 text: "أنمي كويز بوت",
-                iconURL: "https://i.imgur.com/56Bu3l9.png",
             }) // Updated image URL
             .setTimestamp();
 
@@ -308,7 +304,6 @@ client.on("messageCreate", (message) => {
             .setColor("#00BFFF") // Blue color
             .setFooter({
                 text: "أنمي كويز بوت",
-                iconURL: "https://i.imgur.com/56Bu3l9.png",
             }) // Updated image URL
             .setTimestamp();
 

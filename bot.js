@@ -86,11 +86,11 @@ async function postDailyQuestion() {
         .get("1343357167528448081")
         .send({ embeds: [embed] });
 
-    let timeLeft = 30; // Initial time in seconds
+    let answerTime = 10;
 
     // Update the embed every second
     countdownInterval = setInterval(async () => {
-        timeLeft--;
+        answerTime--;
 
         // Update the embed with the new time
         const updatedEmbed = new EmbedBuilder()
@@ -105,7 +105,7 @@ async function postDailyQuestion() {
             .addFields(
                 {
                     name: "\u200Fالوقت المتبقي",
-                    value: `\u200F⏳ ${timeLeft} ثانية`,
+                    value: `\u200F⏳ ${answerTime} ثانية`,
                     inline: false,
                 },
                 {
@@ -126,7 +126,7 @@ async function postDailyQuestion() {
         await questionMessage.edit({ embeds: [updatedEmbed] });
 
         // Stop the countdown when time runs out
-        if (timeLeft <= 0 || !quizActive || !currentQuestion) {
+        if (answerTime <= 0 || !quizActive || !currentQuestion) {
             clearInterval(countdownInterval);
             countdownInterval = null; // Reset the interval variable
 

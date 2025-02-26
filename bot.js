@@ -85,24 +85,67 @@ function postDailyQuestion() {
         .get("1343357167528448081")
         .send({ embeds: [embed] });
 
-    // Set a 30-second timer to end the answering window
-    setTimeout(() => {
-        if (currentQuestion) {
+    let timeLeft = 30; // Initial time in seconds
+
+    // Update the embed every second
+    const countdownInterval = setInterval(async () => {
+        timeLeft--;
+
+        // Update the embed with the new time
+        const updatedEmbed = new EmbedBuilder()
+            .setTitle("\u200F🎌 سؤال الأنمي اليومي 🎌")
+            .setDescription("\u200F" + randomQuestion.question)
+            .setColor("#FFD700")
+            .setThumbnail("https://i.imgur.com/56Bu3l9.png")
+            .setImage(randomQuestion.image)
+            .addFields(
+                { name: "\u200B", value: "\u200B", inline: false },
+            )
+            .addFields(
+                {
+                    name: "\u200Fالوقت المتبقي",
+                    value: `\u200F⏳ ${timeLeft} ثانية`,
+                    inline: false,
+                },
+                {
+                    name: "\u200Fالنقاط",
+                    value: "\u200F!اكتب الإجابة الصحيحة في الشات",
+                    inline: false,
+                },
+            )
+            .addFields(
+                { name: "\u200B", value: "\u200B", inline: false },
+            )
+            .setFooter({
+                text: "\u200Fأنمي كويز بوت",
+                iconURL: "https://i.imgur.com/56Bu3l9.png",
+            })
+            .setTimestamp();
+
+        // Edit the message with the updated embed
+        await questionMessage.edit({ embeds: [updatedEmbed] });
+
+        // Stop the countdown when time runs out
+        if (timeLeft <= 0) {
+            clearInterval(countdownInterval);
+
             const answerEmbed = new EmbedBuilder()
-                .setTitle("\u200F⏰ انتهى الوقت ⏰") // RTL mark + reversed text
+                .setTitle("\u200F⏰ انتهى الوقت ⏰")
                 .setDescription(
                     "\u200F" +
                     `الإجابة الصحيحة هي: **${currentQuestion.correctAnswer}**`,
-                ) // RTL mark
-                .setColor("#FF0000") // Red color
+                )
+                .setColor("#FF0000")
                 .setFooter({
                     text: "\u200Fأنمي كويز بوت",
                     iconURL: "https://i.imgur.com/56Bu3l9.png",
-                }) // Updated image URL
+                })
                 .setTimestamp();
-            client.channels.cache
+
+            await client.channels.cache
                 .get("1343357167528448081")
                 .send({ embeds: [answerEmbed] });
+
             currentQuestion = null; // Reset the question
 
             // Schedule the next question after 30 seconds (if the quiz is still active)
@@ -110,7 +153,7 @@ function postDailyQuestion() {
                 setTimeout(postDailyQuestion, 30000); // 30 seconds
             }
         }
-    }, 30000); // 30 seconds
+    }, 1000); // Update every second
 }
 
 // Listen for messages in the chat

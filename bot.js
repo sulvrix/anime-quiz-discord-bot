@@ -25,19 +25,6 @@ let currentQuestion = null;
 const scores = new Map();
 const answeredUsers = new Set(); // Track users who have answered
 
-// Function to check if the current time is within the active range
-function isWithinActiveTimeRange() {
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-
-    // Define the active time range (4:00 PM to 6:00 PM)
-    const startHour = 16; // 4:00 PM
-    const endHour = 18; // 6:00 PM
-
-    // Check if the current time is within the active range
-    return hours >= startHour && hours < endHour;
-}
 
 client.on("ready", () => {
     console.log(`Logged in as ${client.user.tag}`);
@@ -109,7 +96,7 @@ function postDailyQuestion() {
                 .setTitle("\u200F⏰ انتهى الوقت ⏰") // RTL mark + reversed text
                 .setDescription(
                     "\u200F" +
-                        `الإجابة الصحيحة هي: **${currentQuestion.correctAnswer}**`,
+                    `الإجابة الصحيحة هي: **${currentQuestion.correctAnswer}**`,
                 ) // RTL mark
                 .setColor("#FF0000") // Red color
                 .setFooter({
@@ -143,7 +130,7 @@ client.on("interactionCreate", async (interaction) => {
     const options = currentQuestion.options;
 
     if (options[answerIndex] === correctAnswer) {
-        await interaction.reply({ content: "إجابة صحيحة! 🎉", flags: 64 }); // Ephemeral
+        await interaction.reply(`<@${interaction.user.id}> أجاب بشكل صحيح! 🎉`);
         const userScore = scores.get(interaction.user.id) || 0;
         scores.set(interaction.user.id, userScore + 1);
 
@@ -223,19 +210,6 @@ client.on("messageCreate", (message) => {
         message.channel.send({ embeds: [embed] });
     }
 });
-
-// Status command
-//client.on("messageCreate", async (message) => {
-//    if (message.content === "!الحالة") {
-//        if (isWithinActiveTimeRange()) {
-//            await message.reply("البوت نشط الآن! 🟢");
-//        } else {
-//            await message.reply(
-//                "البوت غير نشط حالياً. الرجاء المحاولة خلال الساعات النشطة. 🔴",
-//            );
-//        }
-//    }
-//});
 
 // Admin command to force a question (using multiple role IDs)
 client.on("messageCreate", async (message) => {

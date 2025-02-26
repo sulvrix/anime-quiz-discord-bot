@@ -311,7 +311,9 @@ client.on("messageCreate", async (message) => {
         if (hasAllowedRole) {
             // Force post a question
             if (message.content === "!reset") {
-                scores = new Map();
+                // Clear the scores map
+                scores.clear();
+                await message.channel.send("تم إعادة تعيين النقاط بنجاح! 🎉");
             }
 
         }

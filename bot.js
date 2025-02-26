@@ -64,12 +64,7 @@ async function postDailyQuestion() {
         .addFields(
             {
                 name: "\u200Fالوقت المتبقي",
-                value: "\u200F⏳ 30 ثانية",
-                inline: false,
-            }, // RTL mark + reversed text
-            {
-                name: "\u200Fالنقاط",
-                value: "\u200F!اكتب الإجابة الصحيحة في الشات",
+                value: "\u200F⏳ 10 ثواني",
                 inline: false,
             }, // RTL mark + reversed text
         )
@@ -106,11 +101,6 @@ async function postDailyQuestion() {
                 {
                     name: "\u200Fالوقت المتبقي",
                     value: `\u200F⏳ ${answerTime} ثانية`,
-                    inline: false,
-                },
-                {
-                    name: "\u200Fالنقاط",
-                    value: "\u200F!اكتب الإجابة الصحيحة في الشات",
                     inline: false,
                 },
             )
@@ -241,7 +231,6 @@ client.on("messageCreate", async (message) => {
         await message.channel.send("تم بدء الاختبار! سيتم نشر الأسئلة الآن.");
         postDailyQuestion(); // Start posting questions
     }
-
     // Stop Quiz Command
     if (message.content === "!stop") {
         if (!quizActive) {
@@ -294,10 +283,10 @@ client.on("messageCreate", (message) => {
             .setDescription(
                 `
                 **كيفية استخدام البوت:**
-                - استخدم \`!startquiz\` لبدء الاختبار (للمشرفين فقط).
-                - استخدم \`!stopquiz\` لإيقاف الاختبار (للمشرفين فقط).
+                - استخدم \`!start\` لبدء الاختبار (للمشرفين فقط).
+                - استخدم \`!stop\` لإيقاف الاختبار (للمشرفين فقط).
                 - اكتب الإجابة الصحيحة في الشات.
-                - لديك 30 ثانية للإجابة على كل سؤال.
+                - لديك 10 ثواني للإجابة على كل سؤال.
                 - استخدم \`!الترتيب\` لرؤية أفضل اللاعبين.
             `,
             )
@@ -311,9 +300,9 @@ client.on("messageCreate", (message) => {
     }
 });
 
-// Admin command to force a question (using multiple role IDs)
+// Admin command to force a reset (using multiple role IDs)
 client.on("messageCreate", async (message) => {
-    if (message.content === "!سؤال") {
+    if (message.content === "!reset") {
         // Check if the user has an allowed role
         const hasAllowedRole = allowedRoleIds.some((roleId) =>
             message.member.roles.cache.has(roleId),
@@ -321,7 +310,10 @@ client.on("messageCreate", async (message) => {
 
         if (hasAllowedRole) {
             // Force post a question
-            postDailyQuestion();
+            if (message.content === "!reset") {
+                scores = new Map();
+            }
+
         }
     }
 });

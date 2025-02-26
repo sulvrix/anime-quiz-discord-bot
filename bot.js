@@ -125,28 +125,32 @@ async function postDailyQuestion() {
         // Edit the message with the updated embed
         await questionMessage.edit({ embeds: [updatedEmbed] });
 
+
         // Stop the countdown when time runs out
-        if (timeLeft <= 0) {
+        if (timeLeft <= 0 || !quizActive || !currentQuestion) {
             clearInterval(countdownInterval);
 
-            const answerEmbed = new EmbedBuilder()
-                .setTitle("\u200F⏰ انتهى الوقت ⏰")
-                .setDescription(
-                    "\u200F" +
-                    `الإجابة الصحيحة هي: **${currentQuestion.correctAnswer}**`,
-                )
-                .setColor("#FF0000")
-                .setFooter({
-                    text: "\u200Fأنمي كويز بوت",
-                    iconURL: "https://i.imgur.com/56Bu3l9.png",
-                })
-                .setTimestamp();
+            // Check if the question is still active
+            if (currentQuestion) {
+                const answerEmbed = new EmbedBuilder()
+                    .setTitle("\u200F⏰ انتهى الوقت ⏰")
+                    .setDescription(
+                        "\u200F" +
+                        `الإجابة الصحيحة هي: **${currentQuestion.correctAnswer}**`,
+                    )
+                    .setColor("#FF0000")
+                    .setFooter({
+                        text: "\u200Fأنمي كويز بوت",
+                        iconURL: "https://i.imgur.com/56Bu3l9.png",
+                    })
+                    .setTimestamp();
 
-            await client.channels.cache
-                .get("1343357167528448081")
-                .send({ embeds: [answerEmbed] });
+                await client.channels.cache
+                    .get("1343357167528448081")
+                    .send({ embeds: [answerEmbed] });
 
-            currentQuestion = null; // Reset the question
+                currentQuestion = null; // Reset the question
+            }
 
             // Schedule the next question after 30 seconds (if the quiz is still active)
             if (quizActive) {

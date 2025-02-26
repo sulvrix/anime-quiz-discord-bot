@@ -1,11 +1,6 @@
 [
     {
         "question": "من هي الشخصية التي تظهر في الصورة؟",
-        "correctAnswer": "لوفي",
-        "image": "https://i.imgur.com/PLAobHS.jpeg"
-    },
-    {
-        "question": "من هي الشخصية التي تظهر في الصورة؟",
         "correctAnswer": "كورابيكا",
         "image": "https://i.imgur.com/uDPH8RL.gif"
     },
@@ -13,5 +8,55 @@
         "question": "من هي الشخصية التي تظهر في الصورة؟",
         "correctAnswer": "ساسكي",
         "image": "https://i.imgur.com/8MnqjPE.gif"
+    },
+    {
+        "question": "من هي الشخصية التي تظهر في الصورة؟",
+        "correctAnswer": "ناروتو",
+        "image": "https://i.imgur.com/ZD7RoNh.gif"
+    },
+    {
+        "question": "من هي الشخصية التي تظهر في الصورة؟",
+        "correctAnswer": "غوكو",
+        "image": "https://i.imgur.com/bwbSpVz.jpeg"
+    },
+    {
+        "question": "من هي الشخصية التي تظهر في الصورة؟",
+        "correctAnswer": "ايرين",
+        "image": "https://i.imgur.com/WFf0rPa.jpeg"
+    },
+    {
+        "question": "من هي الشخصية التي تظهر في الصورة؟",
+        "correctAnswer": "زورو",
+        "image": "https://i.imgur.com/D1PT0H6.gif"
+    },
+    {
+        "question": "من هي الشخصية التي تظهر في الصورة؟",
+        "correctAnswer": "هيناتا",
+        "image": "https://i.imgur.com/uQ0fH0f.jpeg"
+    },
+    {
+        "question": "من هي الشخصية التي تظهر في الصورة؟",
+        "correctAnswer": "لوفي",
+        "image": "https://i.imgur.com/PLAobHS.jpeg"
+    },
+    {
+        "question": "من هي الشخصية التي تظهر في الصورة؟",
+        "correctAnswer": "ايرزا",
+        "image": "https://i.imgur.com/QtbiAa5.png"
+    },
+    {
+        "question": "من هي الشخصية التي تظهر في الصورة؟",
+        "correctAnswer": "سانجي",
+        "image": "https://i.imgur.com/o0Lm76v.jpeg"
+    },
+    {
+        "question": "من هي الشخصية التي تظهر في الصورة؟",
+        "correctAnswer": "كاكاشي",
+        "image": "https://i.imgur.com/6eqcTBT.gif"
+    },
+    {
+        "question": "من هي الشخصية التي تظهر في الصورة؟",
+        "correctAnswer": "اكاينو",
+        "image": "https://i.imgur.com/mV5uSwd.jpeg"
     }
 ]

@@ -166,26 +166,26 @@ client.on("messageCreate", async (message) => {
     if (!hasAllowedRole) return; // Ignore if the user doesn't have the required role
 
     // Start Quiz Command
-    if (message.content === "!startquiz") {
+    if (message.content === "!start") {
         if (quizActive) {
-            await message.reply("الاختبار يعمل بالفعل!");
+            await message.channel.send("الاختبار يعمل بالفعل!");
             return;
         }
 
         quizActive = true;
-        await message.reply("تم بدء الاختبار! سيتم نشر الأسئلة الآن.");
+        await message.channel.send("تم بدء الاختبار! سيتم نشر الأسئلة الآن.");
         postDailyQuestion(); // Start posting questions
     }
 
     // Stop Quiz Command
-    if (message.content === "!stopquiz") {
+    if (message.content === "!stop") {
         if (!quizActive) {
-            await message.reply("الاختبار متوقف بالفعل!");
+            await message.channel.send("الاختبار متوقف بالفعل!");
             return;
         }
 
         quizActive = false;
-        await message.reply("تم إيقاف الاختبار. لن يتم نشر المزيد من الأسئلة.");
+        await message.channel.send("تم إيقاف الاختبار. لن يتم نشر المزيد من الأسئلة.");
     }
 });
 

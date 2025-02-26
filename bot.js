@@ -185,6 +185,7 @@ client.on("messageCreate", async (message) => {
         }
 
         quizActive = false;
+        currentQuestion = null; // Reset the current question
         await message.channel.send("تم إيقاف الاختبار. لن يتم نشر المزيد من الأسئلة.");
     }
 });

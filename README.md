@@ -32,8 +32,13 @@
 git clone https://github.com/yourusername/anime-quiz-bot.git
 cd anime-quiz-bot
 ```
-# Install dependencies\
+# Install dependencies
 npm install
 
-# Configure environment\
+# Configure environment
 cp .env.example .env
+
+# Edit the .env file with your credentials
+BOT_TOKEN=your_token_here\
+ADMIN_USERS=admin1_id,admin2_id  # Discord user IDs
+

@@ -24,25 +24,27 @@
 ### Requirements  
 - Node.js 16+  
 - Discord bot token  
-- Server with [these permissions](#-permissions)  
+- Server with [these permissions](#-permissions)
+
+---
 
 ## Installation  
-### Clone the repository
+### 1. Clone the repository
 ```bash
 git clone https://github.com/yourusername/anime-quiz-bot.git
 cd anime-quiz-bot
 ```
-### Install dependencies
+### 2. Install dependencies
 npm install
 
-### Configure environment
+### 3. Configure environment
 cp .env.example .env
 
-### Edit the .env file with your credentials
+### 4. Edit the .env file with your credentials
 BOT_TOKEN=your_token_here\
 ADMIN_USERS=admin1_id,admin2_id  # Discord user IDs
 
-### Add questions in questions.json:
+### 5. Add questions in questions.json:
 ```json
 [
   {
@@ -54,6 +56,8 @@ ADMIN_USERS=admin1_id,admin2_id  # Discord user IDs
 ```
 ### Start the bot:
 node bot.js
+
+---
 
 ## 🎮 Commands
 
@@ -71,6 +75,8 @@ node bot.js
 | `!stop`  | Stop the quiz        | `!stop` |
 | `!reset` | Reset all scores     | `!reset` |
 
+---
+
 ## 🔐 Permissions:
 Required bot permissions:
 + View Channels  
@@ -80,6 +86,8 @@ Required bot permissions:
 + Read Message History
 
 <p><a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_BOT_ID&amp;permissions=277025770560&amp;scope=bot" target="_blank" rel="noreferrer">Generate Invite Link</a></p>
+
+---
 
 ## 🛠 Advanced:
 ### Deployment Options:
@@ -100,6 +108,8 @@ RUN npm install
 CMD ["node", "bot.js"]
 ```
 
+---
+
 ## Customization:
 1. Timing Settings:
 ```json
@@ -114,12 +124,16 @@ Edit embed colors in bot.js:
 .setColor("#FF0000") // Red for timeouts
 ```
 
+---
+
 ## ❓ Troubleshooting:
 | Issue                  | Solution                                  |
 |------------------------|-------------------------------------------|
 | Missing permissions    | Re-invite bot with [correct permissions](#-permissions) |
 | Answers not detected   | Check normalization in `questions.json`   |
 | Bot not responding     | Verify token in `.env` is correct         |
+
+---
 
 ## 📜 License:
 MIT © 2025 Sulvrix

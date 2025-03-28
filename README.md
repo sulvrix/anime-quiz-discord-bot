@@ -27,7 +27,7 @@
 - Server with [these permissions](#-permissions)  
 
 ## Installation  
-# Clone the repository
+### Clone the repository
 ```bash
 git clone https://github.com/yourusername/anime-quiz-bot.git
 cd anime-quiz-bot
@@ -70,3 +70,13 @@ node bot.js
 | `!start` | Start the quiz       | `!start` |
 | `!stop`  | Stop the quiz        | `!stop` |
 | `!reset` | Reset all scores     | `!reset` |
+
+## 🔐 Permissions:
+Required bot permissions:
++ View Channels  
++ Send Messages  
++ Embed Links  
++ Add Reactions  
++ Read Message History
+
+<p><a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_BOT_ID&amp;permissions=277025770560&amp;scope=bot" target="_blank" rel="noreferrer">Generate Invite Link</a></p>

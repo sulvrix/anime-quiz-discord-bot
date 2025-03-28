@@ -31,7 +31,7 @@ A customizable Arabic anime quiz bot for Discord servers that posts daily questi
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/anime-quiz-bot.git
+   git clone https://github.com/sulvrix/anime-quiz-bot.git
    cd anime-quiz-bot
    
 2. Install dependencies:

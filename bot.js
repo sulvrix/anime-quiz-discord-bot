@@ -1,339 +1,659 @@
-require("dotenv").config(); // Load environment variables
+require("dotenv").config();
 const {
     Client,
     GatewayIntentBits,
     EmbedBuilder,
+    PermissionsBitField,
 } = require("discord.js");
-const fs = require("fs"); // Import the fs module to read files
+const fs = require("fs");
+const path = require("path");
+
+// Initialize client with enhanced options
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent, // Required to read message content
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
     ],
+    ws: {
+        large_threshold: 50,
+        compress: true,
+    },
+    rest: {
+        timeout: 30000,
+        retries: 3,
+    },
 });
 
-const token = process.env.BOT_TOKEN; // Load token from .env file
+// Configuration
+const config = {
+    token: process.env.BOT_TOKEN,
+    adminUsers: process.env.ADMIN_USERS?.split(",") || [],
+    defaultCooldown: 30,
+    questionDuration: 10,
+    dataFile: path.join(__dirname, "server_data.json"),
+};
 
-// Load questions from questions.json
+// Data structure
+let serverData = {};
+let commandCooldowns = new Map();
+
+// Load questions
 const questions = JSON.parse(fs.readFileSync("questions.json", "utf-8"));
 
-let currentQuestion = null;
-let lastQuestion = null; // Track the last question asked
-let quizActive = false; // Control whether the quiz is active
-const scores = new Map();
-const answeredUsers = new Set(); // Track users who have answered
-let countdownInterval = null; // Store the countdown interval
+// Load server data from file
+function loadData() {
+    try {
+        if (fs.existsSync(config.dataFile)) {
+            const data = fs.readFileSync(config.dataFile, "utf-8");
+            serverData = JSON.parse(data);
 
-// Allowed role IDs for admin commands
-const allowedRoleIds = ["1322237538232172568", "1342591205455954012"]; // Replace with your role IDs
+            // Reinitialize timer-related properties
+            Object.keys(serverData).forEach((serverId) => {
+                serverData[serverId].countdownInterval = null;
+                serverData[serverId].questionTimeout = null;
 
-client.on("ready", () => {
-    console.log(`Logged in as ${client.user.tag}`);
-});
+                // Restart quiz if it was active
+                if (serverData[serverId].quizActive) {
+                    serverData[serverId].quizActive = false; // Reset state
+                    console.log(
+                        `Quiz was active in ${serverId}, needs manual restart`,
+                    );
+                }
+            });
+        }
+    } catch (err) {
+        console.error("Error loading data:", err);
+    }
+}
 
-function getRandomQuestion() {
+// Save server data to file
+function saveData() {
+    try {
+        // Create a clean copy without circular references
+        const cleanData = {};
+        Object.keys(serverData).forEach((serverId) => {
+            cleanData[serverId] = { ...serverData[serverId] };
+            // Remove unserializable properties
+            delete cleanData[serverId].countdownInterval;
+            delete cleanData[serverId].questionTimeout;
+        });
+
+        fs.writeFileSync(config.dataFile, JSON.stringify(cleanData, null, 2));
+    } catch (err) {
+        console.error("Error saving data:", err);
+    }
+}
+
+// Initialize server data
+function initServer(serverId) {
+    if (!serverData[serverId]) {
+        serverData[serverId] = {
+            quizActive: false,
+            currentQuestion: null,
+            lastQuestion: null,
+            scores: {},
+            answeredUsers: [],
+            quizChannel: null,
+            countdownInterval: null, // Will not be saved
+            questionTimeout: null, // Will not be saved
+        };
+    }
+    return serverData[serverId];
+}
+
+// Get a random question
+function getRandomQuestion(serverId) {
+    const server = serverData[serverId];
     let randomQuestion;
-    do {
-        // Select a random question
-        randomQuestion = questions[Math.floor(Math.random() * questions.length)];
-    } while (randomQuestion === lastQuestion); // Ensure it's not the same as the last question
+    let attempts = 0;
+    const maxAttempts = questions.length * 2;
 
-    lastQuestion = randomQuestion; // Update the last question asked
+    do {
+        randomQuestion =
+            questions[Math.floor(Math.random() * questions.length)];
+        attempts++;
+        if (attempts >= maxAttempts) break; // Prevent infinite loops
+    } while (
+        server.lastQuestion &&
+        randomQuestion.question === server.lastQuestion.question
+    );
+
+    server.lastQuestion = randomQuestion;
     return randomQuestion;
 }
-let questionTimeout = null; // Track the setTimeout for the next question
 
-async function postDailyQuestion() {
-    if (!quizActive) return; // Do not post questions if the quiz is inactive
+// Post question to a specific server
+async function postDailyQuestion(serverId) {
+    try {
+        const server = serverData[serverId];
+        if (!server || !server.quizActive || !server.quizChannel) return;
 
-    const randomQuestion = getRandomQuestion(); // Get a non-repeating random question
-    currentQuestion = randomQuestion;
-    answeredUsers.clear(); // Reset answered users for the new question
+        const channel = client.channels.cache.get(server.quizChannel);
+        if (!channel) {
+            console.error(`Channel ${server.quizChannel} not found`);
+            server.quizActive = false;
+            saveData();
+            return;
+        }
 
-    // Create an embed with RTL text and image
-    const embed = new EmbedBuilder()
-        .setTitle("\u200F🎌 سؤال الأنمي اليومي 🎌") // RTL mark + reversed text
-        .setDescription("\u200F" + randomQuestion.question) // RTL mark
-        .setColor("#FFD700") // Gold color
-        .setThumbnail("https://static.wikia.nocookie.net/frieren/images/9/96/Himmel_anime_portrait.png/revision/latest?cb=20231017083515") // Updated image URL
-        .setImage(randomQuestion.image) // Add the question image
-        .addFields(
-            { name: "\u200B", value: "\u200B", inline: false }, // Invisible spacer field
-        )
-        .addFields(
-            {
-                name: "\u200Fالوقت المتبقي",
-                value: "\u200F⏳ 10 ثواني",
-                inline: false,
-            }, // RTL mark + reversed text
-        )
-        .addFields(
-            { name: "\u200B", value: "\u200B", inline: false }, // Invisible spacer field
-        )
-        .setFooter({
-            text: "\u200Fأنمي كويز بوت",
-        }) // Updated image URL
-        .setTimestamp(); // Add a timestamp
+        const randomQuestion = getRandomQuestion(serverId);
+        server.currentQuestion = randomQuestion;
+        server.answeredUsers = [];
+        saveData();
 
-    // Send the embed and store the message
-    const questionMessage = await client.channels.cache
-        .get("1343357167528448081")
-        .send({ embeds: [embed] });
+        let answerTime = config.questionDuration;
 
-    let answerTime = 10;
-
-    // Update the embed every second
-    countdownInterval = setInterval(async () => {
-        answerTime--;
-
-        // Update the embed with the new time
-        const updatedEmbed = new EmbedBuilder()
+        const embed = new EmbedBuilder()
             .setTitle("\u200F🎌 سؤال الأنمي اليومي 🎌")
             .setDescription("\u200F" + randomQuestion.question)
             .setColor("#FFD700")
-            .setThumbnail("https://static.wikia.nocookie.net/frieren/images/9/96/Himmel_anime_portrait.png/revision/latest?cb=20231017083515")
+            .setThumbnail(
+                "https://static.wikia.nocookie.net/frieren/images/9/96/Himmel_anime_portrait.png/revision/latest?cb=20231017083515",
+            )
             .setImage(randomQuestion.image)
-            .addFields(
-                { name: "\u200B", value: "\u200B", inline: false },
-            )
-            .addFields(
-                {
-                    name: "\u200Fالوقت المتبقي",
-                    value: `\u200F⏳ ${answerTime} ثانية`,
-                    inline: false,
-                },
-            )
-            .addFields(
-                { name: "\u200B", value: "\u200B", inline: false },
-            )
-            .setFooter({
-                text: "\u200Fأنمي كويز بوت",
+            .addFields({ name: "\u200B", value: "\u200B" })
+            .addFields({
+                name: "\u200Fالوقت المتبقي",
+                value: `\u200F⏳ ${answerTime} ثانية`,
             })
+            .setFooter({ text: "\u200Fأنمي كويز بوت" })
             .setTimestamp();
 
-        // Edit the message with the updated embed
-        await questionMessage.edit({ embeds: [updatedEmbed] });
+        const questionMessage = await channel.send({ embeds: [embed] });
 
-        // Stop the countdown when time runs out
-        if (answerTime <= 0 || !quizActive || !currentQuestion) {
-            clearInterval(countdownInterval);
-            countdownInterval = null; // Reset the interval variable
+        // Countdown timer
+        server.countdownInterval = setInterval(async () => {
+            try {
+                answerTime--;
 
-            // Check if the question is still active
-            if (currentQuestion) {
-                const answerEmbed = new EmbedBuilder()
-                    .setTitle("\u200F⏰ انتهى الوقت ⏰")
-                    .setDescription(
-                        "\u200F" +
-                        `الإجابة الصحيحة هي: **${currentQuestion.correctAnswer}**`,
+                const updatedEmbed = new EmbedBuilder()
+                    .setTitle("\u200F🎌 سؤال الأنمي اليومي 🎌")
+                    .setDescription("\u200F" + randomQuestion.question)
+                    .setColor("#FFD700")
+                    .setThumbnail(
+                        "https://static.wikia.nocookie.net/frieren/images/9/96/Himmel_anime_portrait.png/revision/latest?cb=20231017083515",
                     )
-                    .setColor("#FF0000")
-                    .setFooter({
-                        text: "\u200Fأنمي كويز بوت",
+                    .setImage(randomQuestion.image)
+                    .addFields({ name: "\u200B", value: "\u200B" })
+                    .addFields({
+                        name: "\u200Fالوقت المتبقي",
+                        value: `\u200F⏳ ${answerTime} ثانية`,
                     })
+                    .setFooter({ text: "\u200Fأنمي كويز بوت" })
                     .setTimestamp();
 
-                await client.channels.cache
-                    .get("1343357167528448081")
-                    .send({ embeds: [answerEmbed] });
+                await questionMessage.edit({ embeds: [updatedEmbed] });
 
-                currentQuestion = null; // Reset the question
-            }
+                if (
+                    answerTime <= 0 ||
+                    !server.quizActive ||
+                    !server.currentQuestion
+                ) {
+                    clearInterval(server.countdownInterval);
+                    server.countdownInterval = null;
 
-            // Schedule the next question after 30 seconds (if the quiz is still active)
-            if (quizActive) {
-                // Clear any existing timeout
-                if (questionTimeout) {
-                    clearTimeout(questionTimeout);
-                    questionTimeout = null;
+                    if (server.currentQuestion) {
+                        const answerEmbed = new EmbedBuilder()
+                            .setTitle("\u200F⏰ انتهى الوقت ⏰")
+                            .setDescription(
+                                `\u200Fالإجابة الصحيحة هي: **${server.currentQuestion.correctAnswer}**`,
+                            )
+                            .setColor("#FF0000")
+                            .setFooter({ text: "\u200Fأنمي كويز بوت" })
+                            .setTimestamp();
+
+                        await channel.send({ embeds: [answerEmbed] });
+                        server.currentQuestion = null;
+                        saveData();
+                    }
+
+                    if (server.quizActive) {
+                        server.questionTimeout = setTimeout(
+                            () => postDailyQuestion(serverId),
+                            config.defaultCooldown * 1000,
+                        );
+                        saveData();
+                    }
                 }
-
-                // Schedule the next question
-                questionTimeout = setTimeout(postDailyQuestion, 30000); // 30 seconds
+            } catch (error) {
+                console.error("Countdown error:", error);
+                clearInterval(server.countdownInterval);
+                server.countdownInterval = null;
             }
-        }
-    }, 1000); // Update every second
+        }, 1000);
+        saveData();
+    } catch (error) {
+        console.error("Error posting question:", error);
+        serverData[serverId].quizActive = false;
+        saveData();
+    }
 }
 
-// Listen for messages in the chat
+// Check if user has admin permissions
+function isAdmin(member) {
+    if (!member) return false;
+    return (
+        member.permissions.has(PermissionsBitField.Flags.Administrator) ||
+        config.adminUsers.includes(member.id)
+    );
+}
+
+// Bot events
+client.on("ready", () => {
+    console.log(`Logged in as ${client.user.tag}`);
+    loadData();
+
+    // Initialize all servers
+    client.guilds.cache.forEach((guild) => {
+        initServer(guild.id);
+    });
+
+    // Periodic cleanup
+    setInterval(() => {
+        Object.keys(serverData).forEach((serverId) => {
+            if (!client.guilds.cache.has(serverId)) {
+                delete serverData[serverId];
+            }
+        });
+        saveData();
+    }, 3600000); // Every hour
+});
+
+client.on("shardDisconnect", (event, shardId) => {
+    console.error(`Shard ${shardId} disconnected!`, event);
+});
+
+client.on("shardReconnecting", (shardId) => {
+    console.log(`Shard ${shardId} reconnecting...`);
+});
+
+// Message handling
 client.on("messageCreate", async (message) => {
-    if (message.author.bot) return; // Ignore messages from bots
-    if (!currentQuestion) return; // Ignore messages if no question is active
+    try {
+        if (message.author.bot) return;
+        if (!message.guild) return;
+        if (!message.channel) return;
 
-    // Check if the user has already answered
-    if (answeredUsers.has(message.author.id)) {
-        try {
-            await message.reply("لقد أجبت بالفعل على هذا السؤال!");
-        } catch (error) {
-            console.error("Failed to send reply:", error);
-        }
-        return;
-    }
+        // Cooldown check
+        if (commandCooldowns.has(message.author.id)) return;
+        commandCooldowns.set(message.author.id, true);
+        setTimeout(() => commandCooldowns.delete(message.author.id), 1000);
 
-    // Check if the message matches the correct answer
-    if (message.content.trim() === currentQuestion.correctAnswer) {
-        // Add the user to the answered users set
-        answeredUsers.add(message.author.id);
+        const serverId = message.guild.id;
+        const server = initServer(serverId);
+        const prefix = "!";
 
-        // Update the user's score
-        const userScore = scores.get(message.author.id) || 0;
-        scores.set(message.author.id, userScore + 1);
+        if (message.content.startsWith("!")) {
+            // Block non-setup commands if no channel set
+            if (!server.quizChannel && !message.content.startsWith("!setup"))
+                return;
 
-        try {
-            // Announce the correct answer
-            await message.channel.send(`<@${message.author.id}> أجاب بشكل صحيح! 🎉`);
-        } catch (error) {
-            console.error("Failed to send announcement:", error);
-        }
-
-        // Clear the countdown interval
-        if (countdownInterval) {
-            clearInterval(countdownInterval);
-            countdownInterval = null;
-        }
-
-        // Reset the question
-        currentQuestion = null;
-
-        // Schedule the next question after 30 seconds (if the quiz is still active)
-        if (quizActive) {
-            // Clear any existing timeout
-            if (questionTimeout) {
-                clearTimeout(questionTimeout);
-                questionTimeout = null;
+            // Block all commands not in quiz channel (except setup)
+            if (
+                server.quizChannel &&
+                message.channel.id !== server.quizChannel &&
+                !message.content.startsWith("!setup")
+            ) {
+                return;
             }
 
-            // Schedule the next question
-            questionTimeout = setTimeout(postDailyQuestion, 30000); // 30 seconds
+            const args = message.content
+                .slice(prefix.length)
+                .trim()
+                .split(/ +/);
+            const command = args.shift().toLowerCase();
+
+            switch (command) {
+                case "setup":
+                    if (!isAdmin(message.member)) {
+                        return;
+                    }
+
+                    const me = message.guild.members.me;
+                    if (!me) return;
+
+                    const requiredPerms = [
+                        PermissionsBitField.Flags.ViewChannel,
+                        PermissionsBitField.Flags.SendMessages,
+                        PermissionsBitField.Flags.ReadMessageHistory,
+                        PermissionsBitField.Flags.EmbedLinks,
+                    ];
+
+                    const missingPerms = message.channel
+                        .permissionsFor(me)
+                        .missing(requiredPerms);
+                    if (missingPerms.length > 0) {
+                        return message
+                            .reply({
+                                content: `❌ البوت يحتاج إلى هذه الصلاحيات:\n${missingPerms.join("\n")}`,
+                                ephemeral: true,
+                            })
+                            .catch(console.error);
+                    }
+
+                    server.quizChannel = message.channel.id;
+                    saveData();
+                    message
+                        .reply(`✅ تم تعيين ${message.channel} كقناة المسابقة!`)
+                        .catch(console.error);
+                    break;
+
+                case "test":
+                    if (!isAdmin(message.member)) return;
+
+                    const testEmbed = new EmbedBuilder()
+                        .setTitle("🧪 اختبار حالة البوت")
+                        .addFields(
+                            {
+                                name: "السؤال الحالي",
+                                value: server.currentQuestion
+                                    ? server.currentQuestion.question
+                                    : "لا يوجد",
+                            },
+                            {
+                                name: "الإجابة الصحيحة",
+                                value: server.currentQuestion
+                                    ? server.currentQuestion.correctAnswer
+                                    : "لا يوجد",
+                            },
+                            {
+                                name: "القناة المحددة",
+                                value: server.quizChannel
+                                    ? `<#${server.quizChannel}>`
+                                    : "غير محددة",
+                            },
+                            {
+                                name: "حالة المسابقة",
+                                value: server.quizActive ? "نشطة" : "غير نشطة",
+                            },
+                        )
+                        .setColor("#FFA500");
+
+                    await message.channel.send({ embeds: [testEmbed] });
+                    break;
+
+                case "start":
+                    if (message.channel.id !== server.quizChannel) return;
+                    if (!isAdmin(message.member)) {
+                        return;
+                    }
+
+                    if (server.quizActive) {
+                        return message
+                            .reply("ℹ️ المسابقة تعمل بالفعل!")
+                            .catch(console.error);
+                    }
+
+                    server.quizActive = true;
+                    saveData();
+                    message
+                        .reply("🎉 تم بدء المسابقة! سيتم نشر الأسئلة تلقائياً.")
+                        .catch(console.error);
+                    postDailyQuestion(serverId);
+                    break;
+
+                case "stop":
+                    if (message.channel.id !== server.quizChannel) return;
+                    if (!isAdmin(message.member)) {
+                        return;
+                    }
+
+                    if (!server.quizActive) {
+                        return message
+                            .reply("ℹ️ المسابقة متوقفة بالفعل!")
+                            .catch(console.error);
+                    }
+
+                    server.quizActive = false;
+                    if (server.countdownInterval)
+                        clearInterval(server.countdownInterval);
+                    if (server.questionTimeout)
+                        clearTimeout(server.questionTimeout);
+                    server.currentQuestion = null;
+                    saveData();
+                    message.reply("⏸️ تم إيقاف المسابقة.").catch(console.error);
+                    break;
+
+                case "score":
+                    try {
+                        const sortedScores = Object.entries(server.scores || {})
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 10);
+
+                        const leaderboard =
+                            sortedScores.length > 0
+                                ? sortedScores
+                                      .map(
+                                          ([userId, score], index) =>
+                                              `**${index + 1}.** <@${userId}>: ${score} نقاط`,
+                                      )
+                                      .join("\n")
+                                : "لا توجد نقاط حتى الآن!";
+
+                        const embed = new EmbedBuilder()
+                            .setTitle("🏆 لوحة المتصدرين 🏆")
+                            .setDescription(leaderboard)
+                            .setColor("#00FF00")
+                            .setFooter({
+                                text: `أنمي كويز بوت | ${message.guild.name}`,
+                            })
+                            .setTimestamp();
+
+                        await message.channel.send({ embeds: [embed] });
+                    } catch (err) {
+                        console.error("Score command failed:", err);
+                    }
+                    break;
+
+                case "help":
+                    try {
+                        const helpEmbed = new EmbedBuilder()
+                            .setTitle("🛠️ مساعدة أنمي كويز بوت 🛠️")
+                            .setDescription(
+                                "**مرحباً! إليك كيفية استخدام البوت:**",
+                            )
+                            .setColor("#00BFFF")
+                            .addFields(
+                                {
+                                    name: "⚙️ **أوامر الإعداد**",
+                                    value: `
+                                        - \`!setup\`: تعيين القناة الحالية لقناة المسابقة (للمشرفين)
+                                        - \`!start\`: بدء المسابقة (للمشرفين)
+                                        - \`!stop\`: إيقاف المسابقة (للمشرفين)
+                                    `,
+                                },
+                                {
+                                    name: "🏆 **أوامر المسابقة**",
+                                    value: `
+                                        - \`!score\`: عرض أفضل 10 لاعبين
+                                        - \`!help\`: عرض هذه الرسالة
+                                    `,
+                                },
+                                {
+                                    name: "⏱️ **قواعد المسابقة**",
+                                    value: `
+                                        - اكتب الإجابة الصحيحة في الشات
+                                        - لديك ${config.questionDuration} ثانية للإجابة
+                                        - جائزة لكل إجابة صحيحة: 1 نقطة
+                                    `,
+                                },
+                            )
+                            .setFooter({ text: "تمتع بوقتك مع الأنمي!" });
+
+                        await message.channel.send({ embeds: [helpEmbed] });
+                    } catch (err) {
+                        console.error("Help command failed:", err);
+                    }
+                    break;
+
+                case "reset":
+                    if (message.channel.id !== server.quizChannel) return;
+                    if (!isAdmin(message.member)) {
+                        return;
+                    }
+
+                    server.scores = {};
+                    saveData();
+                    message
+                        .reply("🔄 تم إعادة تعيين النقاط للجميع!")
+                        .catch(console.error);
+                    break;
+
+                case "invite":
+                    try {
+                        const inviteEmbed = new EmbedBuilder()
+                            .setTitle("🔗 دعوة البوت إلى سيرفرك!")
+                            .setDescription(
+                                `[انقر هنا لإضافة البوت إلى سيرفرك](${generateInviteLink()})`,
+                            )
+                            .setColor("#7289DA")
+                            .setFooter({ text: "شكراً لدعمك!" });
+
+                        await message.channel.send({ embeds: [inviteEmbed] });
+                    } catch (err) {
+                        console.error("Invite command failed:", err);
+                    }
+                    break;
+
+                default:
+                    // Unknown command - silently ignore
+                    break;
+            }
+            return;
         }
+
+        // Handle answers to questions
+        if (
+            server.currentQuestion &&
+            message.channel.id === server.quizChannel
+        ) {
+            console.log(
+                "Answer detection started for message:",
+                message.content,
+            );
+
+            // Enhanced normalization function
+            const normalizeText = (text) => {
+                const normalized = text
+                    .trim()
+                    .normalize("NFC") // Unicode normalization
+                    .replace(/[إأآ]/g, "ا") // Normalize Alef variants
+                    .replace(/ة/g, "ه"); // Normalize Ta Marbuta
+
+                return normalized;
+            };
+
+            const userAnswer = normalizeText(message.content);
+            const correctAnswer = normalizeText(
+                server.currentQuestion.correctAnswer,
+            );
+
+            // Add this right before the answer comparison
+            console.log("User answer:", userAnswer);
+            console.log("Correct answer:", correctAnswer);
+            console.log("Comparison:", userAnswer === correctAnswer);
+
+            if (server.answeredUsers.includes(message.author.id)) {
+                return message
+                    .reply("⏳ لقد أجبت بالفعل على هذا السؤال!")
+                    .catch(console.error);
+            }
+
+            if (userAnswer === correctAnswer) {
+                server.answeredUsers.push(message.author.id);
+                server.scores[message.author.id] =
+                    (server.scores[message.author.id] || 0) + 1;
+                saveData();
+
+                try {
+                    await message
+                        .react("✅")
+                        .catch((e) =>
+                            console.log("Couldn't react, but continuing:", e),
+                        );
+
+                    await message.channel.send(
+                        `🎉 <@${message.author.id}> أجاب بشكل صحيح!`,
+                    );
+                } catch (err) {
+                    console.error("Error handling correct answer:", err);
+                }
+
+                // Clean up current question
+                if (server.countdownInterval) {
+                    clearInterval(server.countdownInterval);
+                }
+                if (server.questionTimeout) {
+                    clearTimeout(server.questionTimeout);
+                }
+                server.currentQuestion = null;
+                saveData();
+
+                if (server.quizActive) {
+                    server.questionTimeout = setTimeout(
+                        () => postDailyQuestion(serverId),
+                        config.defaultCooldown * 1000,
+                    );
+                    console.log("Set new question timeout");
+                    saveData();
+                }
+            } else {
+                console.log("Answer did not match");
+            }
+        }
+    } catch (error) {
+        console.error("Message handler error:", error);
     }
 });
-// Start/Stop Quiz Commands
-client.on("messageCreate", async (message) => {
-    if (message.author.bot) return; // Ignore messages from bots
 
-    // Check if the user has an allowed role
-    const hasAllowedRole = allowedRoleIds.some((roleId) =>
-        message.member.roles.cache.has(roleId),
+// Error handling
+process.on("unhandledRejection", (error) => {
+    console.error("Unhandled promise rejection:", error);
+});
+
+// =====================
+// Process Cleanup Handler
+// =====================
+process.on("SIGINT", async () => {
+    console.log(
+        "\n[SHUTDOWN] Received SIGINT - Saving data and cleaning up...",
     );
 
-    if (!hasAllowedRole) return; // Ignore if the user doesn't have the required role
+    // 1. Clear all active timers
+    Object.keys(serverData).forEach((serverId) => {
+        const server = serverData[serverId];
+        server.quizActive = false;
 
-    // Start Quiz Command
-    if (message.content === "!start") {
-        if (quizActive) {
-            await message.channel.send("الاختبار يعمل بالفعل!");
-            return;
+        if (server.countdownInterval) {
+            clearInterval(server.countdownInterval);
+            console.log(`[SHUTDOWN] Cleared interval for server ${serverId}`);
         }
+        if (server.questionTimeout) {
+            clearTimeout(server.questionTimeout);
+            console.log(`[SHUTDOWN] Cleared timeout for server ${serverId}`);
+        }
+    });
 
-        quizActive = true;
-        await message.channel.send("تم بدء الاختبار! سيتم نشر الأسئلة الآن.");
-        postDailyQuestion(); // Start posting questions
+    // 2. Force save data
+    try {
+        await saveData();
+        console.log("[SHUTDOWN] Data saved successfully");
+    } catch (err) {
+        console.error("[SHUTDOWN] Error saving data:", err);
     }
-    // Stop Quiz Command
-    if (message.content === "!stop") {
-        if (!quizActive) {
-            await message.channel.send("الاختبار متوقف بالفعل!");
-            return;
-        }
 
-        quizActive = false;
-        currentQuestion = null; // Reset the current question
+    // 3. Disconnect client
+    client.destroy();
+    console.log("[SHUTDOWN] Discord client destroyed");
 
-        // Clear the countdown interval
-        if (countdownInterval) {
-            clearInterval(countdownInterval);
-            countdownInterval = null;
-        }
-
-        await message.channel.send("تم إيقاف الاختبار. لن يتم نشر المزيد من الأسئلة.");
-    }
+    // 4. Exit process
+    process.exit(0);
 });
 
-// Leaderboard command
-client.on("messageCreate", (message) => {
-    if (message.content === "!score") {
-        const sortedScores = [...scores.entries()].sort((a, b) => b[1] - a[1]);
-        const leaderboard = sortedScores
-            .map(
-                ([userId, score], index) =>
-                    `**${index + 1}.** <@${userId}>: ${score} نقاط`,
-            )
-            .join("\n");
-
-        const embed = new EmbedBuilder()
-            .setTitle("🏆 لوحة المتصدرين 🏆")
-            .setDescription(leaderboard || "لا توجد نقاط حتى الآن!")
-            .setColor("#00FF00") // Green color
-            .setFooter({
-                text: "أنمي كويز بوت",
-            }) // Updated image URL
-            .setTimestamp();
-
-        message.channel.send({ embeds: [embed] });
-    }
+// Start the bot (this is your existing line)
+client.login(config.token).catch((err) => {
+    console.error("Failed to login:", err);
+    process.exit(1);
 });
-
-client.on("messageCreate", (message) => {
-    if (message.content === "!help") {
-        const embed = new EmbedBuilder()
-            .setTitle("🛠️ مساعدة أنمي كويز بوت 🛠️")
-            .setDescription("**مرحبًا! هنا كيفية استخدام البوت:**")
-            .setColor("#00BFFF") // Blue color
-            .addFields(
-                {
-                    name: "🎮 **أوامر الاختبار**",
-                    value: `
-                        - \`!start\`: بدء الاختبار (للمشرفين فقط).
-                        - \`!stop\`: إيقاف الاختبار (للمشرفين فقط).
-                        - \`!reset\`: إعادة تعيين النقاط (للمشرفين فقط).
-                    `,
-                    inline: false,
-                },
-                {
-                    name: "⏱️ **قواعد الاختبار**",
-                    value: `
-                        - اكتب الإجابة الصحيحة في الشات.
-                        - لديك **10 ثواني** للإجابة على كل سؤال.
-                    `,
-                    inline: false,
-                },
-                {
-                    name: "🏆 **أوامر إضافية**",
-                    value: `
-                        - \`!score\`: عرض لوحة المتصدرين.
-                        - \`!help\`: عرض هذه الرسالة.
-                    `,
-                    inline: false,
-                },
-            )
-            .setFooter({
-                text: "أنمي كويز بوت | تمتع باللعبة!",
-            })
-            .setTimestamp();
-
-        message.channel.send({ embeds: [embed] });
-    }
-});
-
-// Admin command to force a reset (using multiple role IDs)
-client.on("messageCreate", async (message) => {
-    if (message.content === "!reset") {
-        // Check if the user has an allowed role
-        const hasAllowedRole = allowedRoleIds.some((roleId) =>
-            message.member.roles.cache.has(roleId),
-        );
-
-        if (hasAllowedRole) {
-            // Force post a question
-
-            scores.clear();
-            await message.channel.send("تم إعادة تعيين النقاط بنجاح! 🎉");
-
-
-        }
-    }
-});
-
-client.login(token);

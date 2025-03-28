@@ -1,0 +1,34 @@
+{
+  "914960301215080470": {
+    "quizActive": false,
+    "currentQuestion": null,
+    "lastQuestion": {
+      "question": "من هي الشخصية التي تظهر في الصورة؟",
+      "correctAnswer": "ساسكي",
+      "image": "https://i.imgur.com/8MnqjPE.gif"
+    },
+    "scores": {
+      "416675355131379712": 2
+    },
+    "answeredUsers": [
+      "416675355131379712"
+    ],
+    "quizChannel": "917178219302645801"
+  },
+  "1322237538219458612": {
+    "quizActive": false,
+    "currentQuestion": null,
+    "lastQuestion": {
+      "question": "من هي الشخصية التي تظهر في الصورة؟",
+      "correctAnswer": "ايرين",
+      "image": "https://i.imgur.com/WFf0rPa.jpeg"
+    },
+    "scores": {
+      "416675355131379712": 5
+    },
+    "answeredUsers": [
+      "416675355131379712"
+    ],
+    "quizChannel": "1343357167528448081"
+  }
+}

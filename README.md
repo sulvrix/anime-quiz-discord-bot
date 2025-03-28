@@ -80,3 +80,46 @@ Required bot permissions:
 + Read Message History
 
 <p><a href="https://discord.com/api/oauth2/authorize?client_id=YOUR_BOT_ID&amp;permissions=277025770560&amp;scope=bot" target="_blank" rel="noreferrer">Generate Invite Link</a></p>
+
+## 🛠 Advanced:
+### Deployment Options:
+- PM2 (Recommended)
+```bash
+npm install pm2 -g
+pm2 start bot.js --name anime-quiz
+pm2 save
+pm2 startup
+```
+
+- Docker
+```bash
+FROM node:16
+WORKDIR /app
+COPY . .
+RUN npm install
+CMD ["node", "bot.js"]
+```
+
+## Customization:
+1. Timing Settings:
+```json
+// In config:
+defaultCooldown: 30,  // Seconds between questions
+questionDuration: 10  // Answer time window
+```
+2. Appearance:
+Edit embed colors in bot.js:
+```json
+.setColor("#FFD700") // Gold for questions
+.setColor("#FF0000") // Red for timeouts
+```
+
+## ❓ Troubleshooting:
+| Issue                  | Solution                                  |
+|------------------------|-------------------------------------------|
+| Missing permissions    | Re-invite bot with [correct permissions](#-permissions) |
+| Answers not detected   | Check normalization in `questions.json`   |
+| Bot not responding     | Verify token in `.env` is correct         |
+
+## 📜 License:
+MIT © 2025 Sulvrix

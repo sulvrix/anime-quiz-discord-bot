@@ -26,19 +26,47 @@
 - Discord bot token  
 - Server with [these permissions](#-permissions)  
 
-### Installation  
+## Installation  
 # Clone the repository
 ```bash
 git clone https://github.com/yourusername/anime-quiz-bot.git
 cd anime-quiz-bot
 ```
-# Install dependencies
+### Install dependencies
 npm install
 
-# Configure environment
+### Configure environment
 cp .env.example .env
 
-# Edit the .env file with your credentials
+### Edit the .env file with your credentials
 BOT_TOKEN=your_token_here\
 ADMIN_USERS=admin1_id,admin2_id  # Discord user IDs
 
+### Add questions in questions.json:
+```json
+[
+  {
+    "question": "ما اسم السيف الأسطوري في بيرسيرك؟",
+    "correctAnswer": "دراغون سلاير",
+    "image": "https://example.com/sword.jpg"
+  }
+]
+```
+### Start the bot:
+node bot.js
+
+## 🎮 Commands
+
+### For Everyone
+| Command  | Description          | Example |
+|----------|----------------------|---------|
+| `!help`  | Show command help    | `!help` |
+| `!score` | View leaderboard     | `!score` |
+
+### For Admins
+| Command  | Description          | Example |
+|----------|----------------------|---------|
+| `!setup` | Set quiz channel     | `!setup` |
+| `!start` | Start the quiz       | `!start` |
+| `!stop`  | Stop the quiz        | `!stop` |
+| `!reset` | Reset all scores     | `!reset` |

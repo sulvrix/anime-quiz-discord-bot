@@ -57,7 +57,7 @@ ADMIN_USERS=admin1_id,admin2_id  # Discord user IDs
   }
 ]
 ```
-### Start the bot:
+### 6. Start the bot:
 ```bash
 node bot.js
 ```

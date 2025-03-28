@@ -58,8 +58,9 @@ ADMIN_USERS=admin1_id,admin2_id  # Discord user IDs
 ]
 ```
 ### Start the bot:
+```bash
 node bot.js
-
+```
 ---
 
 ## 🎮 Commands
@@ -115,14 +116,14 @@ CMD ["node", "bot.js"]
 
 ## Customization:
 1. Timing Settings:
-```json
+```bash
 // In config:
 defaultCooldown: 30,  // Seconds between questions
 questionDuration: 10  // Answer time window
 ```
 2. Appearance:
 Edit embed colors in bot.js:
-```json
+```bash
 .setColor("#FFD700") // Gold for questions
 .setColor("#FF0000") // Red for timeouts
 ```

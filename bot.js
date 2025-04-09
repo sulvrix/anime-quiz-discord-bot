@@ -4,6 +4,10 @@ const {
     GatewayIntentBits,
     EmbedBuilder,
     PermissionsBitField,
+    Collection,
+    REST,
+    Routes,
+    MessageFlags,
 } = require("discord.js");
 const fs = require("fs");
 const path = require("path");
@@ -33,7 +37,70 @@ const config = {
     defaultCooldown: 30,
     questionDuration: 10,
     dataFile: path.join(__dirname, "server_data.json"),
+    clientId: process.env.CLIENT_ID,
 };
+
+// Command handling
+client.commands = new Collection();
+
+// Define slash commands
+const commands = [
+    {
+        name: "setup",
+        description: "تعيين القناة الحالية لقناة المسابقة (للمشرفين)",
+        default_member_permissions: PermissionsBitField.Flags.Administrator.toString(),
+    },
+    {
+        name: "start",
+        description: "بدء المسابقة (للمشرفين)",
+        default_member_permissions: PermissionsBitField.Flags.Administrator.toString(),
+    },
+    {
+        name: "stop",
+        description: "إيقاف المسابقة (للمشرفين)",
+        default_member_permissions: PermissionsBitField.Flags.Administrator.toString(),
+    },
+    {
+        name: "score",
+        description: "عرض أفضل 10 لاعبين",
+    },
+    {
+        name: "help",
+        description: "عرض رسالة المساعدة",
+    },
+    {
+        name: "reset",
+        description: "إعادة تعيين النقاط للجميع (للمشرفين)",
+        default_member_permissions: PermissionsBitField.Flags.Administrator.toString(),
+    },
+    // {
+    //     name: "invite",
+    //     description: "الحصول على رابط دعوة البوت",
+    // },
+    {
+        name: "test",
+        description: "اختبار حالة البوت (للمشرفين)",
+        default_member_permissions: PermissionsBitField.Flags.Administrator.toString(),
+    },
+];
+
+// Register slash commands
+async function registerCommands() {
+    try {
+        const rest = new REST({ version: '10' }).setToken(config.token);
+
+        console.log('Started refreshing application (/) commands.');
+
+        await rest.put(
+            Routes.applicationCommands(config.clientId),
+            { body: commands },
+        );
+
+        console.log('Successfully reloaded application (/) commands.');
+    } catch (error) {
+        console.error('Error registering commands:', error);
+    }
+}
 
 // Data structure
 let serverData = {};
@@ -241,7 +308,7 @@ function isAdmin(member) {
 }
 
 // Bot events
-client.on("ready", () => {
+client.on("ready", async () => {
     console.log(`Logged in as ${client.user.tag}`);
     loadData();
 
@@ -249,6 +316,9 @@ client.on("ready", () => {
     client.guilds.cache.forEach((guild) => {
         initServer(guild.id);
     });
+
+    // Register slash commands
+    await registerCommands();
 
     // Periodic cleanup
     setInterval(() => {
@@ -269,49 +339,54 @@ client.on("shardReconnecting", (shardId) => {
     console.log(`Shard ${shardId} reconnecting...`);
 });
 
-// Message handling
-client.on("messageCreate", async (message) => {
+// Handle slash commands
+client.on("interactionCreate", async (interaction) => {
+    if (!interaction.isCommand()) return;
+
+    // const publicCommands = ["start", "help", "score", "invite"];
+    const publicCommands = ["start", "help", "score"];
+
     try {
-        if (message.author.bot) return;
-        if (!message.guild) return;
-        if (!message.channel) return;
+        // Conditionally defer based on command type
+        if (publicCommands.includes(interaction.commandName)) {
+            await interaction.deferReply(); // Public defer
+        } else {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral }); // Private defer
+        }
 
-        // Cooldown check
-        if (commandCooldowns.has(message.author.id)) return;
-        commandCooldowns.set(message.author.id, true);
-        setTimeout(() => commandCooldowns.delete(message.author.id), 1000);
 
-        const serverId = message.guild.id;
+        const { commandName, guild, channel, member } = interaction;
+        const serverId = guild.id;
         const server = initServer(serverId);
-        const prefix = "!";
 
-        if (message.content.startsWith("!")) {
-            // Block non-setup commands if no channel set
-            if (!server.quizChannel && !message.content.startsWith("!setup"))
-                return;
+        // Block non-setup commands if no channel set
+        if (!server.quizChannel && commandName !== "setup") {
+            return interaction.editReply({
+                content: "❌ لم يتم تعيين قناة المسابقة بعد! استخدم `/setup` أولاً."
+            });
+        }
 
-            // Block all commands not in quiz channel (except setup)
-            if (
-                server.quizChannel &&
-                message.channel.id !== server.quizChannel &&
-                !message.content.startsWith("!setup")
-            ) {
-                return;
-            }
+        // Block all commands not in quiz channel (except setup)
+        if (
+            server.quizChannel &&
+            channel.id !== server.quizChannel &&
+            commandName !== "setup"
+        ) {
+            return interaction.editReply({
+                content: `❌ يجب استخدام الأوامر في قناة المسابقة المخصصة: <#${server.quizChannel}>`,
+            });
+        }
 
-            const args = message.content
-                .slice(prefix.length)
-                .trim()
-                .split(/ +/);
-            const command = args.shift().toLowerCase();
-
-            switch (command) {
+        try {
+            switch (commandName) {
                 case "setup":
-                    if (!isAdmin(message.member)) {
-                        return;
+                    if (!isAdmin(member)) {
+                        return interaction.editReply({
+                            content: "❌ ليس لديك صلاحية استخدام هذا الأمر!",
+                        });
                     }
 
-                    const me = message.guild.members.me;
+                    const me = guild.members.me;
                     if (!me) return;
 
                     const requiredPerms = [
@@ -321,27 +396,26 @@ client.on("messageCreate", async (message) => {
                         PermissionsBitField.Flags.EmbedLinks,
                     ];
 
-                    const missingPerms = message.channel
+                    const missingPerms = channel
                         .permissionsFor(me)
                         .missing(requiredPerms);
                     if (missingPerms.length > 0) {
-                        return message
-                            .reply({
-                                content: `❌ البوت يحتاج إلى هذه الصلاحيات:\n${missingPerms.join("\n")}`,
-                                ephemeral: true,
-                            })
-                            .catch(console.error);
+                        return interaction.editReply({
+                            content: `❌ البوت يحتاج إلى هذه الصلاحيات:\n${missingPerms.join("\n")}`,
+                        });
                     }
 
-                    server.quizChannel = message.channel.id;
+                    server.quizChannel = channel.id;
                     saveData();
-                    message
-                        .reply(`✅ تم تعيين ${message.channel} كقناة المسابقة!`)
-                        .catch(console.error);
+                    interaction.editReply(`✅ تم تعيين ${channel} كقناة المسابقة!`);
                     break;
 
                 case "test":
-                    if (!isAdmin(message.member)) return;
+                    if (!isAdmin(member)) {
+                        return interaction.editReply({
+                            content: "❌ ليس لديك صلاحية استخدام هذا الأمر!",
+                        });
+                    }
 
                     const testEmbed = new EmbedBuilder()
                         .setTitle("🧪 اختبار حالة البوت")
@@ -371,39 +445,37 @@ client.on("messageCreate", async (message) => {
                         )
                         .setColor("#FFA500");
 
-                    await message.channel.send({ embeds: [testEmbed] });
+                    await interaction.editReply({
+                        embeds: [testEmbed],
+                    });
                     break;
 
                 case "start":
-                    if (message.channel.id !== server.quizChannel) return;
-                    if (!isAdmin(message.member)) {
-                        return;
+                    if (!isAdmin(member)) {
+                        return interaction.editReply({
+                            content: "❌ ليس لديك صلاحية استخدام هذا الأمر!",
+                        });
                     }
 
                     if (server.quizActive) {
-                        return message
-                            .reply("ℹ️ المسابقة تعمل بالفعل!")
-                            .catch(console.error);
+                        return interaction.editReply("ℹ️ المسابقة تعمل بالفعل!");
                     }
 
                     server.quizActive = true;
                     saveData();
-                    message
-                        .reply("🎉 تم بدء المسابقة! سيتم نشر الأسئلة تلقائياً.")
-                        .catch(console.error);
+                    await interaction.editReply("🎉 تم بدء المسابقة! سيتم نشر الأسئلة تلقائياً.");
                     postDailyQuestion(serverId);
                     break;
 
                 case "stop":
-                    if (message.channel.id !== server.quizChannel) return;
-                    if (!isAdmin(message.member)) {
-                        return;
+                    if (!isAdmin(member)) {
+                        return interaction.editReply({
+                            content: "❌ ليس لديك صلاحية استخدام هذا الأمر!",
+                        });
                     }
 
                     if (!server.quizActive) {
-                        return message
-                            .reply("ℹ️ المسابقة متوقفة بالفعل!")
-                            .catch(console.error);
+                        return interaction.editReply("ℹ️ المسابقة متوقفة بالفعل!");
                     }
 
                     server.quizActive = false;
@@ -413,7 +485,7 @@ client.on("messageCreate", async (message) => {
                         clearTimeout(server.questionTimeout);
                     server.currentQuestion = null;
                     saveData();
-                    message.reply("⏸️ تم إيقاف المسابقة.").catch(console.error);
+                    interaction.editReply("⏸️ تم إيقاف المسابقة.");
                     break;
 
                 case "score":
@@ -425,25 +497,32 @@ client.on("messageCreate", async (message) => {
                         const leaderboard =
                             sortedScores.length > 0
                                 ? sortedScores
-                                      .map(
-                                          ([userId, score], index) =>
-                                              `**${index + 1}.** <@${userId}>: ${score} نقاط`,
-                                      )
-                                      .join("\n")
+                                    .map(
+                                        ([userId, score], index) =>
+                                            `**${index + 1}.** <@${userId}>: ${score} نقاط`,
+                                    )
+                                    .join("\n")
                                 : "لا توجد نقاط حتى الآن!";
 
-                        const embed = new EmbedBuilder()
+                        const scoreEmbed = new EmbedBuilder()
                             .setTitle("🏆 لوحة المتصدرين 🏆")
                             .setDescription(leaderboard)
                             .setColor("#00FF00")
                             .setFooter({
-                                text: `أنمي كويز بوت | ${message.guild.name}`,
+                                text: `أنمي كويز بوت | ${guild.name}`,
                             })
                             .setTimestamp();
 
-                        await message.channel.send({ embeds: [embed] });
+                        await interaction.editReply({
+                            embeds: [scoreEmbed]
+                        });
+                        break;
+
                     } catch (err) {
                         console.error("Score command failed:", err);
+                        interaction.editReply({
+                            content: "❌ حدث خطأ أثناء عرض النتائج!",
+                        });
                     }
                     break;
 
@@ -451,88 +530,114 @@ client.on("messageCreate", async (message) => {
                     try {
                         const helpEmbed = new EmbedBuilder()
                             .setTitle("🛠️ مساعدة أنمي كويز بوت 🛠️")
-                            .setDescription(
-                                "**مرحباً! إليك كيفية استخدام البوت:**",
-                            )
+                            .setDescription("**مرحباً! إليك كيفية استخدام البوت:**")
                             .setColor("#00BFFF")
                             .addFields(
                                 {
                                     name: "⚙️ **أوامر الإعداد**",
                                     value: `
-                                        - \`!setup\`: تعيين القناة الحالية لقناة المسابقة (للمشرفين)
-                                        - \`!start\`: بدء المسابقة (للمشرفين)
-                                        - \`!stop\`: إيقاف المسابقة (للمشرفين)
-                                    `,
+                                    - \`/setup\`: تعيين القناة الحالية لقناة المسابقة (للمشرفين)
+                                    - \`/start\`: بدء المسابقة (للمشرفين)
+                                    - \`/stop\`: إيقاف المسابقة (للمشرفين)
+                                `,
                                 },
                                 {
                                     name: "🏆 **أوامر المسابقة**",
                                     value: `
-                                        - \`!score\`: عرض أفضل 10 لاعبين
-                                        - \`!help\`: عرض هذه الرسالة
-                                    `,
+                                    - \`/score\`: عرض أفضل 10 لاعبين
+                                    - \`/help\`: عرض هذه الرسالة
+                                `,
                                 },
                                 {
                                     name: "⏱️ **قواعد المسابقة**",
                                     value: `
-                                        - اكتب الإجابة الصحيحة في الشات
-                                        - لديك ${config.questionDuration} ثانية للإجابة
-                                        - جائزة لكل إجابة صحيحة: 1 نقطة
-                                    `,
+                                    - اكتب الإجابة الصحيحة في الشات
+                                    - لديك ${config.questionDuration} ثانية للإجابة
+                                    - جائزة لكل إجابة صحيحة: 1 نقطة
+                                `,
                                 },
                             )
                             .setFooter({ text: "تمتع بوقتك مع الأنمي!" });
 
-                        await message.channel.send({ embeds: [helpEmbed] });
+                        await interaction.editReply({
+                            embeds: [helpEmbed],
+                        });
+                        break;
+
                     } catch (err) {
                         console.error("Help command failed:", err);
+                        interaction.editReply({
+                            content: "❌ حدث خطأ أثناء عرض المساعدة!",
+                        });
                     }
                     break;
 
                 case "reset":
-                    if (message.channel.id !== server.quizChannel) return;
-                    if (!isAdmin(message.member)) {
-                        return;
+                    if (!isAdmin(member)) {
+                        return interaction.editReply({
+                            content: "❌ ليس لديك صلاحية استخدام هذا الأمر!",
+                        });
                     }
 
                     server.scores = {};
                     saveData();
-                    message
-                        .reply("🔄 تم إعادة تعيين النقاط للجميع!")
-                        .catch(console.error);
+                    interaction.editReply("🔄 تم إعادة تعيين النقاط للجميع!");
                     break;
 
-                case "invite":
-                    try {
-                        const inviteEmbed = new EmbedBuilder()
-                            .setTitle("🔗 دعوة البوت إلى سيرفرك!")
-                            .setDescription(
-                                `[انقر هنا لإضافة البوت إلى سيرفرك](${generateInviteLink()})`,
-                            )
-                            .setColor("#7289DA")
-                            .setFooter({ text: "شكراً لدعمك!" });
+                // case "invite":
+                //     try {
+                //         const inviteEmbed = new EmbedBuilder()
+                //             .setTitle("🔗 دعوة البوت إلى سيرفرك!")
+                //             .setDescription(
+                //                 `[انقر هنا لإضافة البوت إلى سيرفرك](${generateInviteLink()})`,
+                //             )
+                //             .setColor("#7289DA")
+                //             .setFooter({ text: "شكراً لدعمك!" });
 
-                        await message.channel.send({ embeds: [inviteEmbed] });
-                    } catch (err) {
-                        console.error("Invite command failed:", err);
-                    }
-                    break;
+                //         await interaction.editReply({
+                //             embeds: [inviteEmbed],
+                //         });
+                //         break;
 
-                default:
-                    // Unknown command - silently ignore
-                    break;
+                //     } catch (err) {
+                //         console.error("Invite command failed:", err);
+                //         interaction.editReply({
+                //             content: "❌ حدث خطأ أثناء إنشاء رابط الدعوة!",
+                //         });
+                //     }
+                //     break;
             }
-            return;
+        } catch (error) {
+            console.error(`Error handling /${interaction.commandName}:`, error);
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply({
+                    content: "❌ حدث خطأ أثناء تنفيذ الأمر!",
+                }).catch(console.error);
+            }
         }
+    } catch (error) {
+        console.error(`Error handling /${commandName}:`, error);
+        if (!interaction.replied) {
+            interaction.editReply({
+                content: "❌ حدث خطأ أثناء تنفيذ الأمر!",
+            }).catch(console.error);
+        }
+    }
+});
 
-        // Handle answers to questions
-        if (
-            server.currentQuestion &&
-            message.channel.id === server.quizChannel
-        ) {
-            console.log(
-                "Answer detection started for message:",
-                message.content,
-            );
+// Message handling
+client.on("messageCreate", async (message) => {
+    try {
+        if (message.author.bot) return;
+        if (!message.guild) return;
+        if (!message.channel) return;
+
+        const serverId = message.guild.id;
+        const server = initServer(serverId);
+
+        // Handle answers to questions (remove the ! prefix check)
+        if (server.currentQuestion && String(message.channel.id) === String(server.quizChannel)) {
+            console.log("Answer detection started for message:", message.content);
 
             // Enhanced normalization function
             const normalizeText = (text) => {
@@ -550,10 +655,6 @@ client.on("messageCreate", async (message) => {
                 server.currentQuestion.correctAnswer,
             );
 
-            // Add this right before the answer comparison
-            console.log("User answer:", userAnswer);
-            console.log("Correct answer:", correctAnswer);
-            console.log("Comparison:", userAnswer === correctAnswer);
 
             if (server.answeredUsers.includes(message.author.id)) {
                 return message
@@ -651,6 +752,10 @@ process.on("SIGINT", async () => {
     // 4. Exit process
     process.exit(0);
 });
+
+function generateInviteLink() {
+    return `https://discord.com/oauth2/authorize?client_id=${config.clientId}&permissions=277025770560&scope=bot%20applications.commands`;
+}
 
 // Start the bot (this is your existing line)
 client.login(config.token).catch((err) => {
